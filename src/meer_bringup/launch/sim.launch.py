@@ -199,6 +199,17 @@ def generate_launch_description():
     )
 
     # =========================================================================
+    # 6. Mission Arena Visualizer (Base Station, Waypoints, Boundary in RViz)
+    # =========================================================================
+    mission_markers = Node(
+        package="meer_mission_control",
+        executable="mission_markers_node.py",
+        name="mission_markers_node",
+        parameters=[{"use_sim_time": use_sim_time}],
+        output="screen",
+    )
+
+    # =========================================================================
     # Assemble LaunchDescription
     # =========================================================================
     return LaunchDescription(
@@ -215,5 +226,6 @@ def generate_launch_description():
             spawn_entity,
             ros_gz_bridge,
             rviz2,
+            mission_markers,
         ]
     )

@@ -32,6 +32,12 @@ install(TARGETS mission_control_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
+install(PROGRAMS
+  scripts/mission_markers_node.py
+  scripts/autonomous_mission_runner.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
 )
