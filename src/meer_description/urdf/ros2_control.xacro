@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<!--
+  ros2_control Xacro for MEER Rover
+  ===================================
+  Defines the <ros2_control> hardware block loaded by controller_manager.
+
+  Hardware:
+    - In SIMULATION : gz_ros2_control/GazeboSimSystem handles this block.
+    - On REAL ROBOT  : Replace plugin with meer_hardware/MeerSystemInterface
+                       which talks UART/micro-ROS → ESP32 → Cytron MDDS30.
+
+  Actuated joints (velocity interfaces):
+    front_left_wheel  | front_right_wheel
+    back_left_wheel   | back_right_wheel
+
+  Passive joints (NOT listed — controller_manager ignores them):
+    leftrocker | rightrcker
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ─── Simulation vs. Hardware switch ─────────────────────────────── -->
+  <xacro:arg name="use_sim" default="true"/>
+
+  <xacro:if value="$(arg use_sim)">
+    <xacro:property name="hardware_plugin" value="gz_ros2_control/GazeboSimSystem"/>
+  </xacro:if>
+  <xacro:unless value="$(arg use_sim)">
+    <xacro:property name="hardware_plugin" value="meer_hardware/MeerSystemInterface"/>
+  </xacro:unless>
+
+  <!-- ─── ros2_control block ──────────────────────────────────────────── -->
+  <ros2_control name="MeerRoverHardware" type="system">
+
+    <hardware>
+      <plugin>${hardware_plugin}</plugin>
+    </hardware>
+
+    <!-- ── Front Left Wheel ─────────────────────────────────────────── -->
+    <joint name="front_left_wheel">
+      <command_interface name="velocity">
+        <param name="min">-10</param>
+        <param name="max">10</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+
+    <!-- ── Back Left Wheel ──────────────────────────────────────────── -->
+    <joint name="back_left_wheel">
+      <command_interface name="velocity">
+        <param name="min">-10</param>
+        <param name="max">10</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+
+    <!-- ── Front Right Wheel ────────────────────────────────────────── -->
+    <joint name="front_right_wheel">
+      <command_interface name="velocity">
+        <param name="min">-10</param>
+        <param name="max">10</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+
+    <!-- ── Back Right Wheel ─────────────────────────────────────────── -->
+    <joint name="back_right_wheel">
+      <command_interface name="velocity">
+        <param name="min">-10</param>
+        <param name="max">10</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+
+  </ros2_control>
+
+</robot>

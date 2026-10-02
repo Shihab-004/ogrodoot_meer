@@ -1,0 +1,57 @@
+# =============================================================================
+# competition_mission.yaml — Official NAGC 2026 Autonomous Mission Config
+# =============================================================================
+#
+# Rulebook parameters for the 100-mark Autonomous Navigation Mission:
+#   - Course: 53m x 34m outdoor terrain
+#   - Base Station: 2m x 2m zone
+#   - Time limit: 20 minutes (1200 seconds)
+#   - Max speed: 1.5 m/s
+#
+# Deliverables generated onboard:
+#   - tree_verdict.log
+#   - panorama_360.jpg
+#   - onboard_run.log
+# =============================================================================
+
+mission_control_node:
+  ros__parameters:
+    use_sim_time: true
+    mission_time_limit_sec: 1200.0   # 20 minutes
+    max_linear_speed: 1.5            # m/s max limit
+    base_station_radius: 1.0         # 2m x 2m zone (1m radius from center)
+    waypoint_tolerance: 1.5          # Must be within 1.5m of GPS Point 1 & 2
+
+    # ── WGS 84 GPS Waypoints (Lat/Lon) ───────────────────────────────────────
+    # Provided prior to run start:
+    base_station:
+      latitude:  23.810300
+      longitude: 90.412500
+      altitude:  15.0
+
+    point_1:
+      id: "gps_point_1_tree"
+      latitude:  23.810450
+      longitude: 90.412700
+      altitude:  15.0
+      action: "TREE_VITALITY_DETECTION"
+
+    point_2:
+      id: "gps_point_2_panorama"
+      latitude:  23.810600
+      longitude: 90.412900
+      altitude:  15.0
+      action: "PANORAMA_360_CAPTURE"
+
+    # ── Log / Output Submission Paths ─────────────────────────────────────────
+    output_dir: "/home/shihab/autonomous_meer/log/mission_submissions"
+    tree_verdict_file: "tree_verdict.log"
+    panorama_file: "panorama_360.jpg"
+    onboard_run_log_file: "onboard_run.log"
+
+    # ── Panorama Settings ────────────────────────────────────────────────────
+    panorama:
+      resolution_width: 1920
+      resolution_height: 1080
+      horizon_tolerance_deg: 5.0
+      capture_duration_sec: 10.0

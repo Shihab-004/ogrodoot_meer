@@ -1,0 +1,211 @@
+# MEER Rover — Comprehensive RViz2 Configuration for NAGC 2026
+# Visualizes: RobotModel, TF, LaserScan, Camera, Costmaps, Plans, and 2D Nav Goal
+
+Panels:
+  - Class: rviz_common/Displays
+    Help Height: 78
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /RobotModel1
+        - /TF1
+        - /LaserScan1
+        - /GlobalCostmap1
+        - /LocalCostmap1
+        - /NavPlan1
+      Splitter Ratio: 0.5
+    Tree Height: 600
+  - Class: rviz_common/Selection
+    Name: Selection
+  - Class: rviz_common/Tool Properties
+    Expanded: ~
+    Name: Tool Properties
+    Splitter Ratio: 0.58
+  - Class: rviz_common/Views
+    Expanded:
+      - /Current View1
+    Name: Views
+    Splitter Ratio: 0.5
+
+Visualization Manager:
+  Class: ""
+  Displays:
+    # ── Grid on Ground ────────────────────────────────────────────────
+    - Alpha: 0.5
+      Cell Size: 2.0
+      Class: rviz_default_plugins/Grid
+      Color: 120; 120; 120
+      Enabled: true
+      Line Style:
+        Line Width: 0.03
+        Value: Lines
+      Name: Arena Ground Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 25.0
+        Y: 0.0
+        Z: 0.0
+      Plane: XY
+      Plane Cell Count: 30
+      Reference Frame: odom
+      Value: true
+
+    # ── 3D Robot Model ────────────────────────────────────────────────
+    - Alpha: 1
+      Class: rviz_default_plugins/RobotModel
+      Collision Enabled: false
+      Description Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /robot_description
+      Enabled: true
+      Name: MEER Rover Model
+      Visual Enabled: true
+
+    # ── TF Coordinate Frames ──────────────────────────────────────────
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Frame Timeout: 15
+      Frames:
+        All Enabled: false
+        base_link:
+          Value: true
+        odom:
+          Value: true
+        lidar_link:
+          Value: true
+        camera_link:
+          Value: true
+      Marker Scale: 0.4
+      Name: TF Frames
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+
+    # ── 2D LiDAR Scan ─────────────────────────────────────────────────
+    - Alpha: 1.0
+      Autocompute Intensity Bounds: true
+      Channel Name: intensity
+      Class: rviz_default_plugins/LaserScan
+      Color: 255; 40; 40
+      Color Transformer: FlatColor
+      Decay Time: 0.0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
+      Name: 2D LiDAR (Rocks & Tree)
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 4
+      Size (m): 0.08
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /lidar/scan
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+
+    # ── Global Costmap (53m x 34m Arena) ──────────────────────────────
+    - Alpha: 0.5
+      Class: rviz_default_plugins/Map
+      Color Scheme: costmap
+      Draw Behind: false
+      Enabled: true
+      Name: Global Costmap
+      Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /global_costmap/costmap
+      Update Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /global_costmap/costmap_updates
+      Use Timestamp: false
+      Value: true
+
+    # ── Local Costmap (6m x 6m Dynamic Avoidance) ─────────────────────
+    - Alpha: 0.6
+      Class: rviz_default_plugins/Map
+      Color Scheme: costmap
+      Draw Behind: false
+      Enabled: true
+      Name: Local Costmap
+      Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /local_costmap/costmap
+      Update Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /local_costmap/costmap_updates
+      Use Timestamp: false
+      Value: true
+
+    # ── Navigation Global Plan ────────────────────────────────────────
+    - Alpha: 1.0
+      Class: rviz_default_plugins/Path
+      Color: 0; 255; 50
+      Enabled: true
+      Line Style: Lines
+      Line Width: 0.06
+      Name: Nav2 Planned Path
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /plan
+      Value: true
+
+  Enabled: true
+  Global Options:
+    Background Color: 35; 35; 38
+    Fixed Frame: odom
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+      Hide Inactive Objects: true
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/SetGoal
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /goal_pose
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 22.0
+      Focal Point:
+        X: 12.0
+        Y: 0.0
+        Z: 0.0
+      Name: Top-Down Arena View
+      Near Clip Distance: 0.01
+      Pitch: 1.1
+      Target Frame: odom
+      Value: Orbit (rviz)
+      Yaw: 0.0

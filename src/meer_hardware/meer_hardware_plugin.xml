@@ -1,0 +1,12 @@
+<library path="meer_hardware">
+  <class
+    name="meer_hardware/MeerSystemInterface"
+    type="meer_hardware::MeerSystemInterface"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>
+      MEER Rover hardware interface for ros2_control.
+      Communicates with an ESP32 over UART / micro-ROS to drive
+      4x 24V DC motors via Cytron MDDS30 (Sign-Magnitude PWM+DIR).
+    </description>
+  </class>
+</library>

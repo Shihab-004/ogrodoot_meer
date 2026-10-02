@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<!--
+  Inertia Helper Macros
+  Provides reusable solid-body inertia macros to keep the URDF DRY.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ─── Solid cylinder about the symmetry axis (Y in URDF convention) ── -->
+  <!-- Usage: <xacro:solid_cylinder_inertia m="1.0" r="0.1" h="0.05"/> -->
+  <xacro:macro name="solid_cylinder_inertia" params="m r h">
+    <inertia
+      ixx="${(m/12.0)*(3*r*r + h*h)}"
+      ixy="0.0" ixz="0.0"
+      iyy="${(m/2.0)*r*r}"
+      iyz="0.0"
+      izz="${(m/12.0)*(3*r*r + h*h)}"/>
+  </xacro:macro>
+
+  <!-- ─── Solid box ─────────────────────────────────────────────────────── -->
+  <!-- Usage: <xacro:solid_box_inertia m="1.0" x="0.1" y="0.2" z="0.05"/> -->
+  <xacro:macro name="solid_box_inertia" params="m x y z">
+    <inertia
+      ixx="${(m/12.0)*(y*y + z*z)}"
+      ixy="0.0" ixz="0.0"
+      iyy="${(m/12.0)*(x*x + z*z)}"
+      iyz="0.0"
+      izz="${(m/12.0)*(x*x + y*y)}"/>
+  </xacro:macro>
+
+  <!-- ─── Solid sphere ──────────────────────────────────────────────────── -->
+  <!-- Usage: <xacro:solid_sphere_inertia m="1.0" r="0.05"/> -->
+  <xacro:macro name="solid_sphere_inertia" params="m r">
+    <inertia
+      ixx="${(2.0/5.0)*m*r*r}"
+      ixy="0.0" ixz="0.0"
+      iyy="${(2.0/5.0)*m*r*r}"
+      iyz="0.0"
+      izz="${(2.0/5.0)*m*r*r}"/>
+  </xacro:macro>
+
+</robot>

@@ -1,0 +1,61 @@
+# =============================================================================
+# controllers.yaml — MEER Rover ros2_control Controller Configuration
+# =============================================================================
+controller_manager:
+  ros__parameters:
+    update_rate: 100
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    skid_steer_controller:
+      type: diff_drive_controller/DiffDriveController
+
+
+# ─── Joint State Broadcaster ─────────────────────────────────────────────────
+# Only list joints that have hardware state interfaces (driven wheels only)
+joint_state_broadcaster:
+  ros__parameters:
+    joints:
+      - front_left_wheel
+      - back_left_wheel
+      - front_right_wheel
+      - back_right_wheel
+
+
+# ─── Skid-Steer Drive Controller ─────────────────────────────────────────────
+skid_steer_controller:
+  ros__parameters:
+    left_wheel_names:  [front_left_wheel, back_left_wheel]
+    right_wheel_names: [front_right_wheel, back_right_wheel]
+
+    wheel_radius: 0.10
+    wheel_separation: 0.70
+
+    wheel_separation_multiplier: 1.0
+    left_wheel_radius_multiplier: 1.0
+    right_wheel_radius_multiplier: 1.0
+
+    # Accept plain Twist (not TwistStamped)
+    use_stamped_vel: false
+
+    odom_frame_id:   odom
+    base_frame_id:   base_link
+    pose_covariance_diagonal:  [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
+    twist_covariance_diagonal: [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
+
+    open_loop: false
+    enable_odom_tf: true
+
+    linear.x.has_velocity_limits:     true
+    linear.x.max_velocity:            1.0
+    linear.x.has_acceleration_limits: true
+    linear.x.max_acceleration:        0.5
+
+    angular.z.has_velocity_limits:     true
+    angular.z.max_velocity:            1.5
+    angular.z.has_acceleration_limits: true
+    angular.z.max_acceleration:        1.0
+
+    publish_rate: 50.0
+    cmd_vel_timeout: 0.5
