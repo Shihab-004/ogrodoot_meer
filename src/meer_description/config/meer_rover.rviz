@@ -196,8 +196,6 @@ Visualization Manager:
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true
       Name: Mission Arena Markers
-      Namespaces:
-        {}: true
       Queue Size: 100
       Topic:
         Depth: 5
