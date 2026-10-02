@@ -14,7 +14,8 @@ from geometry_msgs.msg import Point
 class MissionMarkersNode(Node):
     def __init__(self):
         super().__init__('mission_markers_node')
-        self.declare_parameter('use_sim_time', True)
+        if not self.has_parameter('use_sim_time'):
+            self.declare_parameter('use_sim_time', True)
 
         qos = QoSProfile(
             depth=10,

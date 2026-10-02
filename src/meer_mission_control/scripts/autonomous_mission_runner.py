@@ -27,7 +27,8 @@ from cv_bridge import CvBridge
 class AutonomousMissionRunner(Node):
     def __init__(self):
         super().__init__('autonomous_mission_runner')
-        self.declare_parameter('use_sim_time', True)
+        if not self.has_parameter('use_sim_time'):
+            self.declare_parameter('use_sim_time', True)
 
         self.bridge = CvBridge()
         self.latest_cv_image = None
