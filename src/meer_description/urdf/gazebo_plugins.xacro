@@ -23,9 +23,9 @@
       <right_joint>front_right_wheel</right_joint>
       <right_joint>back_right_wheel</right_joint>
 
-      <!-- Kinematics -->
-      <wheel_separation>0.61</wheel_separation>
-      <wheel_radius>0.10</wheel_radius>
+      <!-- Kinematics from Real CAD Model -->
+      <wheel_separation>0.8184</wheel_separation>
+      <wheel_radius>0.1155</wheel_radius>
 
       <!-- Topics -->
       <topic>/cmd_vel</topic>
@@ -58,8 +58,6 @@
       <joint_name>back_left_wheel</joint_name>
       <joint_name>front_right_wheel</joint_name>
       <joint_name>back_right_wheel</joint_name>
-      <joint_name>leftrocker</joint_name>
-      <joint_name>rightrcker</joint_name>
     </plugin>
   </gazebo>
 
@@ -67,7 +65,7 @@
   <!-- Tuned for skid-steer: high forward grip (mu1), low lateral grip (mu2) for turning -->
   <xacro:macro name="wheel_gazebo_friction" params="link_name">
     <gazebo reference="${link_name}">
-      <mu1>1.0</mu1>
+      <mu1>1.2</mu1>
       <mu2>0.4</mu2>
       <kp>1e6</kp>
       <kd>10.0</kd>
@@ -86,6 +84,10 @@
   <!-- ─── Base link visual / collision material ──────────────────────── -->
   <gazebo reference="base_link">
     <material>Gazebo/DarkGrey</material>
+  </gazebo>
+
+  <gazebo reference="enclsr">
+    <material>Gazebo/Grey</material>
   </gazebo>
 
   <gazebo reference="Left_rocker">

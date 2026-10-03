@@ -8,6 +8,13 @@
     - Left     : +Y
     - Up       : +Z
     - Wheel axle rotation axis: +Y [0 1 0]
+
+  Integrated from Real Physical CAD Model (SW2URDF):
+    - Meshes: package://meer_description/meshes/*.STL
+    - Kinematics: 4WD Skid-Steer with twin articulated rocker suspension
+    - Wheel radius: 0.1155 m (115.5 mm)
+    - Wheel track separation: 0.8184 m (818.4 mm)
+    - Wheelbase: 0.682 m (682 mm)
 -->
 <robot name="meer_rover" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
@@ -27,261 +34,334 @@
   <joint name="base_footprint_joint" type="fixed">
     <parent link="base_footprint"/>
     <child link="base_link"/>
-    <origin xyz="0.0 0.0 0.22" rpy="0 0 0"/>
+    <origin xyz="0.0 0.0 0.31074" rpy="0 0 0"/>
   </joint>
 
   <!-- =====================================================================
        BASE LINK (Chassis body)
-       Length (X): 0.65 m
-       Width  (Y): 0.45 m
-       Height (Z): 0.12 m
-       Mass: 2.778 kg
+       Real CAD Model bounds: Length (X)=0.8716 m, Width (Y)=0.3973 m, Height (Z)=0.3494 m
+       Mass: 2.7788 kg (from SolidWorks mass properties)
   ====================================================================== -->
   <link name="base_link">
     <visual>
+      <origin xyz="0 0 0" rpy="0 0 -1.5707963"/>
       <geometry>
-        <box size="0.65 0.45 0.12"/>
+        <mesh filename="package://meer_description/meshes/base_link.STL"/>
       </geometry>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
       <material name="dark_grey"/>
     </visual>
     <collision>
+      <origin xyz="0.03 0.0 0.08" rpy="0 0 0"/>
       <geometry>
-        <box size="0.65 0.45 0.12"/>
+        <box size="0.87 0.40 0.25"/>
       </geometry>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
     </collision>
     <inertial>
-      <mass value="2.778"/>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <xacro:solid_box_inertia m="2.778" x="0.65" y="0.45" z="0.12"/>
+      <mass value="2.7788"/>
+      <origin xyz="-0.00219 0.00508 -0.00451" rpy="0 0 0"/>
+      <inertia
+        ixx="0.050189" ixy="0.0" ixz="0.026071"
+        iyy="0.196732" iyz="0.0" izz="0.227775"/>
     </inertial>
   </link>
 
   <!-- =====================================================================
-       LEFT SUSPENSION CHAIN (Rocker + Wheels on +Y)
+       ENCLOSURE (Electronics housing mounted on top of base_link)
+       Real CAD Model bounds: Length (X)=0.7878 m, Width (Y)=0.4064 m, Height (Z)=0.1727 m
   ====================================================================== -->
-
-  <!-- Left Bearing (fixed mount on left side of chassis at Y = +0.225) -->
-  <link name="left_bearing">
+  <link name="enclsr">
     <visual>
-      <geometry><cylinder radius="0.02" length="0.04"/></geometry>
-      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 -1.5707963"/>
+      <geometry>
+        <mesh filename="package://meer_description/meshes/enclsr.STL"/>
+      </geometry>
       <material name="silver"/>
     </visual>
     <collision>
-      <geometry><cylinder radius="0.02" length="0.04"/></geometry>
-      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <origin xyz="0.09 0.0 0.086" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.78 0.40 0.17"/>
+      </geometry>
     </collision>
     <inertial>
-      <mass value="0.103"/>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <xacro:solid_cylinder_inertia m="0.103" r="0.02" h="0.04"/>
+      <mass value="0.5"/>
+      <origin xyz="0.09 0.0 0.086" rpy="0 0 0"/>
+      <xacro:solid_box_inertia m="0.5" x="0.78" y="0.40" z="0.17"/>
+    </inertial>
+  </link>
+
+  <joint name="enclsr_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="enclsr"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- =====================================================================
+       LEFT SUSPENSION CHAIN (Bearing + Rocker + Wheels on +Y Left)
+  ====================================================================== -->
+
+  <!-- Left Bearing (fixed mount on left side of chassis at Y = +0.2237 m) -->
+  <link name="left_bearing">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 -1.5707963"/>
+      <geometry>
+        <mesh filename="package://meer_description/meshes/left_bearing.STL"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.03" length="0.04"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.1032"/>
+      <origin xyz="-0.00004 -0.03813 0.00793" rpy="0 0 0"/>
+      <inertia
+        ixx="0.000039" ixy="0.0" ixz="0.0"
+        iyy="0.000119" iyz="0.0" izz="0.000100"/>
     </inertial>
   </link>
 
   <joint name="LBRING" type="fixed">
     <parent link="base_link"/>
     <child link="left_bearing"/>
-    <origin xyz="0.0 0.225 -0.05" rpy="0 0 0"/>
+    <origin xyz="0.0015 0.22373 -0.0586" rpy="0 0 0"/>
   </joint>
 
-  <!-- Left Rocker (revolute joint around pitch Y axis) -->
+  <!-- Left Rocker (rigidly locked to chassis bearing, leveled with CAD compensation) -->
   <link name="Left_rocker">
     <visual>
-      <geometry><box size="0.60 0.05 0.04"/></geometry>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 -1.5707963"/>
+      <geometry>
+        <mesh filename="package://meer_description/meshes/Left_rocker.STL"/>
+      </geometry>
       <material name="orange"/>
     </visual>
     <collision>
-      <geometry><box size="0.60 0.05 0.04"/></geometry>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0.0 -0.05 -0.03" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.72 0.05 0.05"/>
+      </geometry>
     </collision>
     <inertial>
-      <mass value="4.921"/>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <xacro:solid_box_inertia m="4.921" x="0.60" y="0.05" z="0.04"/>
+      <mass value="4.9215"/>
+      <origin xyz="-0.01847 0.00746 -0.00647" rpy="0 0 0"/>
+      <inertia
+        ixx="0.022827" ixy="0.000476" ixz="0.008313"
+        iyy="0.231464" iyz="0.000167" izz="0.214717"/>
     </inertial>
   </link>
 
-  <joint name="leftrocker" type="revolute">
+  <joint name="leftrocker" type="fixed">
     <parent link="left_bearing"/>
     <child link="Left_rocker"/>
-    <origin xyz="0 0.03 0" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
-    <limit lower="-0.26" upper="0.26" effort="100" velocity="2.0"/>
-    <dynamics damping="0.5" friction="0.1"/>
+    <origin xyz="0 0 0" rpy="0 0.03126 0"/>
   </joint>
 
-  <!-- FLW — Front Left Wheel (continuous driven wheel, rolling around Y axis) -->
+  <!-- FLW — Front Left Wheel (driven wheel, rolling around Y axis) -->
   <link name="FLW">
     <visual>
-      <geometry><cylinder radius="0.10" length="0.07"/></geometry>
-      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 -1.5707963"/>
+      <geometry>
+        <mesh filename="package://meer_description/meshes/FLW.STL"/>
+      </geometry>
       <material name="black"/>
     </visual>
     <collision>
-      <geometry><cylinder radius="0.10" length="0.07"/></geometry>
-      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <origin xyz="0 -0.0444 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.1155" length="0.0889"/>
+      </geometry>
     </collision>
     <inertial>
-      <mass value="1.911"/>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <xacro:solid_cylinder_inertia m="1.911" r="0.10" h="0.07"/>
+      <mass value="1.9116"/>
+      <origin xyz="0.00004 -0.04682 0.0" rpy="0 0 0"/>
+      <inertia
+        ixx="0.005538" ixy="0.0" ixz="0.0"
+        iyy="0.008143" iyz="0.0" izz="0.005536"/>
     </inertial>
   </link>
 
   <joint name="front_left_wheel" type="continuous">
     <parent link="Left_rocker"/>
     <child link="FLW"/>
-    <origin xyz="0.25 0.05 -0.07" rpy="0 0 0"/>
+    <origin xyz="0.34597 0.1908 -0.12589" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
     <limit effort="50" velocity="20"/>
-    <dynamics damping="0.1" friction="0.05"/>
+    <dynamics damping="0.05" friction="0.02"/>
   </joint>
 
-  <!-- BLW — Back Left Wheel (continuous driven wheel, rolling around Y axis) -->
+  <!-- BLW — Back Left Wheel (driven wheel, rolling around Y axis) -->
   <link name="BLW">
     <visual>
-      <geometry><cylinder radius="0.10" length="0.07"/></geometry>
-      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 -1.5707963"/>
+      <geometry>
+        <mesh filename="package://meer_description/meshes/BLW.STL"/>
+      </geometry>
       <material name="black"/>
     </visual>
     <collision>
-      <geometry><cylinder radius="0.10" length="0.07"/></geometry>
-      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <origin xyz="0 -0.0444 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.1155" length="0.0889"/>
+      </geometry>
     </collision>
     <inertial>
-      <mass value="1.911"/>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <xacro:solid_cylinder_inertia m="1.911" r="0.10" h="0.07"/>
+      <mass value="1.9116"/>
+      <origin xyz="0.00004 -0.04682 0.0" rpy="0 0 0"/>
+      <inertia
+        ixx="0.005538" ixy="0.0" ixz="0.0"
+        iyy="0.008143" iyz="0.0" izz="0.005536"/>
     </inertial>
   </link>
 
   <joint name="back_left_wheel" type="continuous">
     <parent link="Left_rocker"/>
     <child link="BLW"/>
-    <origin xyz="-0.25 0.05 -0.07" rpy="0 0 0"/>
+    <origin xyz="-0.33792 0.1908 -0.14727" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
     <limit effort="50" velocity="20"/>
-    <dynamics damping="0.1" friction="0.05"/>
+    <dynamics damping="0.05" friction="0.02"/>
   </joint>
 
   <!-- =====================================================================
-       RIGHT SUSPENSION CHAIN (Rocker + Wheels on -Y)
+       RIGHT SUSPENSION CHAIN (Bearing + Rocker + Wheels on -Y Right)
   ====================================================================== -->
 
-  <!-- Right Bearing (fixed mount on right side of chassis at Y = -0.225) -->
+  <!-- Right Bearing (fixed mount on right side of chassis at Y = -0.2130 m) -->
   <link name="right_bearing">
     <visual>
-      <geometry><cylinder radius="0.02" length="0.04"/></geometry>
-      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 -1.5707963"/>
+      <geometry>
+        <mesh filename="package://meer_description/meshes/right_bearing.STL"/>
+      </geometry>
       <material name="silver"/>
     </visual>
     <collision>
-      <geometry><cylinder radius="0.02" length="0.04"/></geometry>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.03" length="0.04"/>
+      </geometry>
     </collision>
     <inertial>
-      <mass value="0.103"/>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <xacro:solid_cylinder_inertia m="0.103" r="0.02" h="0.04"/>
+      <mass value="0.1032"/>
+      <origin xyz="0.00004 0.03760 0.00793" rpy="0 0 0"/>
+      <inertia
+        ixx="0.000039" ixy="0.0" ixz="0.0"
+        iyy="0.000119" iyz="0.0" izz="0.000100"/>
     </inertial>
   </link>
 
   <joint name="RBRING" type="fixed">
     <parent link="base_link"/>
     <child link="right_bearing"/>
-    <origin xyz="0.0 -0.225 -0.05" rpy="0 0 0"/>
+    <origin xyz="0.0015 -0.21304 -0.0586" rpy="0 0 0"/>
   </joint>
 
-  <!-- Right Rocker (revolute joint around pitch Y axis) -->
+  <!-- Right Rocker (rigidly locked to chassis bearing, leveled with CAD compensation) -->
   <link name="right_rocker">
     <visual>
-      <geometry><box size="0.60 0.05 0.04"/></geometry>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 -1.5707963"/>
+      <geometry>
+        <mesh filename="package://meer_description/meshes/right_rocker.STL"/>
+      </geometry>
       <material name="orange"/>
     </visual>
     <collision>
-      <geometry><box size="0.60 0.05 0.04"/></geometry>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0.0 0.05 -0.03" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.72 0.05 0.05"/>
+      </geometry>
     </collision>
     <inertial>
-      <mass value="4.921"/>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <xacro:solid_box_inertia m="4.921" x="0.60" y="0.05" z="0.04"/>
+      <mass value="4.9215"/>
+      <origin xyz="-0.01799 -0.00746 -0.00770" rpy="0 0 0"/>
+      <inertia
+        ixx="0.022584" ixy="-0.000464" ixz="-0.004731"
+        iyy="0.231464" iyz="-0.000199" izz="0.214960"/>
     </inertial>
   </link>
 
-  <joint name="rightrcker" type="revolute">
+  <joint name="rightrcker" type="fixed">
     <parent link="right_bearing"/>
     <child link="right_rocker"/>
-    <origin xyz="0 -0.03 0" rpy="0 0 0"/>
-    <axis xyz="0 1 0"/>
-    <limit lower="-0.26" upper="0.26" effort="100" velocity="2.0"/>
-    <dynamics damping="0.5" friction="0.1"/>
+    <origin xyz="0 0 0" rpy="0 0.09904 0"/>
   </joint>
 
-  <!-- FRW — Front Right Wheel (continuous driven wheel, rolling around Y axis) -->
+  <!-- FRW — Front Right Wheel (driven wheel, rolling around Y axis) -->
   <link name="FRW">
     <visual>
-      <geometry><cylinder radius="0.10" length="0.07"/></geometry>
-      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 -1.5707963"/>
+      <geometry>
+        <mesh filename="package://meer_description/meshes/FRW.STL"/>
+      </geometry>
       <material name="black"/>
     </visual>
     <collision>
-      <geometry><cylinder radius="0.10" length="0.07"/></geometry>
-      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <origin xyz="0 0.0444 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.1155" length="0.0889"/>
+      </geometry>
     </collision>
     <inertial>
-      <mass value="1.911"/>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <xacro:solid_cylinder_inertia m="1.911" r="0.10" h="0.07"/>
+      <mass value="1.9116"/>
+      <origin xyz="-0.00004 0.04682 0.0" rpy="0 0 0"/>
+      <inertia
+        ixx="0.005538" ixy="0.0" ixz="0.0"
+        iyy="0.008143" iyz="0.0" izz="0.005536"/>
     </inertial>
   </link>
 
   <joint name="front_right_wheel" type="continuous">
     <parent link="right_rocker"/>
     <child link="FRW"/>
-    <origin xyz="0.25 -0.05 -0.07" rpy="0 0 0"/>
+    <origin xyz="0.3537 -0.1908 -0.10217" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
     <limit effort="50" velocity="20"/>
-    <dynamics damping="0.1" friction="0.05"/>
+    <dynamics damping="0.05" friction="0.02"/>
   </joint>
 
-  <!-- BRW — Back Right Wheel (continuous driven wheel, rolling around Y axis) -->
+  <!-- BRW — Back Right Wheel (driven wheel, rolling around Y axis) -->
   <link name="BRW">
     <visual>
-      <geometry><cylinder radius="0.10" length="0.07"/></geometry>
-      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 -1.5707963"/>
+      <geometry>
+        <mesh filename="package://meer_description/meshes/BRW.STL"/>
+      </geometry>
       <material name="black"/>
     </visual>
     <collision>
-      <geometry><cylinder radius="0.10" length="0.07"/></geometry>
-      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <origin xyz="0 0.0444 0" rpy="1.5707963 0 0"/>
+      <geometry>
+        <cylinder radius="0.1155" length="0.0889"/>
+      </geometry>
     </collision>
     <inertial>
-      <mass value="1.911"/>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <xacro:solid_cylinder_inertia m="1.911" r="0.10" h="0.07"/>
+      <mass value="1.9116"/>
+      <origin xyz="-0.00004 0.04682 0.0" rpy="0 0 0"/>
+      <inertia
+        ixx="0.005538" ixy="0.0" ixz="0.0"
+        iyy="0.008143" iyz="0.0" izz="0.005536"/>
     </inertial>
   </link>
 
   <joint name="back_right_wheel" type="continuous">
     <parent link="right_rocker"/>
     <child link="BRW"/>
-    <origin xyz="-0.25 -0.05 -0.07" rpy="0 0 0"/>
+    <origin xyz="-0.32717 -0.1908 -0.16982" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
     <limit effort="50" velocity="20"/>
-    <dynamics damping="0.1" friction="0.05"/>
+    <dynamics damping="0.05" friction="0.02"/>
   </joint>
 
   <!-- =====================================================================
-       SENSOR LINKS (Standard ROS frames)
-       LiDAR  → top center of base_link (+X forward)
+       SENSOR LINKS (Standard ROS frames attached to base_link)
+       LiDAR  → top front of base_link / enclosure (+X forward)
        Camera → front face of base_link (+X forward)
-       IMU    → geometric center of base_link
-       GPS    → rear top of base_link (-X)
+       IMU    → geometric & CoM center of base_link
+       GPS    → rear top of enclosure (-X rear)
   ====================================================================== -->
 
   <!-- ── 2D LiDAR ──────────────────────────────────────────────────────── -->
@@ -305,7 +385,7 @@
   <joint name="lidar_joint" type="fixed">
     <parent link="base_link"/>
     <child link="lidar_link"/>
-    <origin xyz="0.10 0.0 0.18" rpy="0 0 0"/>
+    <origin xyz="0.15 0.0 0.28" rpy="0 0 0"/>
   </joint>
 
   <!-- ── IMU ───────────────────────────────────────────────────────────── -->
@@ -346,7 +426,7 @@
   <joint name="gps_joint" type="fixed">
     <parent link="base_link"/>
     <child link="gps_link"/>
-    <origin xyz="-0.20 0.0 0.10" rpy="0 0 0"/>
+    <origin xyz="-0.30 0.0 0.22" rpy="0 0 0"/>
   </joint>
 
   <!-- ── RGB Camera ─────────────────────────────────────────────────────── -->
@@ -371,7 +451,7 @@
   <joint name="camera_joint" type="fixed">
     <parent link="base_link"/>
     <child link="camera_link"/>
-    <origin xyz="0.325 0.0 0.05" rpy="0 0 0"/>
+    <origin xyz="0.44 0.0 0.12" rpy="0 0 0"/>
   </joint>
 
   <!-- Camera optical frame (ROS standard: z-forward, x-right, y-down) -->

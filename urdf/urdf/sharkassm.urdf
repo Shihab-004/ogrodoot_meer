@@ -1,0 +1,548 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="sharkassm">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="-0.00507999999999972 -0.00218673701140832 -0.00451136686361187"
+        rpy="0 0 0" />
+      <mass
+        value="2.77876767890177" />
+      <inertia
+        ixx="0.196732233981072"
+        ixy="-6.34345668102311E-17"
+        ixz="-7.59802215963108E-18"
+        iyy="0.0501885895971884"
+        iyz="0.0260713191840361"
+        izz="0.227774902348467" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.647058823529412 0.619607843137255 0.588235294117647 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="left_bearing">
+    <inertial>
+      <origin
+        xyz="0.0381257986448909 -4.09735104873188E-05 0.00793222454703724"
+        rpy="0 0 0" />
+      <mass
+        value="0.103228679937265" />
+      <inertia
+        ixx="0.000119048427929717"
+        ixy="1.63845946925349E-08"
+        ixz="-6.27306210617309E-07"
+        iyy="3.94984540603498E-05"
+        iyz="-1.11513588884461E-07"
+        izz="0.000100286812792574" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/left_bearing.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/left_bearing.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="LBRING"
+    type="fixed">
+    <origin
+      xyz="-0.22372825352472 0.00150000000000005 -0.0586"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="left_bearing" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="Left_rocker">
+    <inertial>
+      <origin
+        xyz="-0.00746260673077952 -0.0184660582533997 -0.0064676880301458"
+        rpy="0 0 0" />
+      <mass
+        value="4.92154306961454" />
+      <inertia
+        ixx="0.231464404649212"
+        ixy="-0.000475982161739429"
+        ixz="-0.00016671149239322"
+        iyy="0.0228272217507368"
+        iyz="0.00831341529835217"
+        izz="0.214717032111287" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/Left_rocker.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.650980392156863 0.619607843137255 0.588235294117647 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/Left_rocker.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="leftrocker"
+    type="continuous">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="left_bearing" />
+    <child
+      link="Left_rocker" />
+    <axis
+      xyz="1 0 0" />
+  </joint>
+  <link
+    name="FLW">
+    <inertial>
+      <origin
+        xyz="0.046819 3.5758E-05 -2.0928E-06"
+        rpy="0 0 0" />
+      <mass
+        value="1.9116" />
+      <inertia
+        ixx="0.0081425"
+        ixy="3.124E-07"
+        ixz="-1.5506E-07"
+        iyy="0.005538"
+        iyz="5.3598E-06"
+        izz="0.005536" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/FLW.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.29804 0.29804 0.29804 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/FLW.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="front_left_wheel"
+    type="continuous">
+    <origin
+      xyz="-0.1908 0.34597 -0.12589"
+      rpy="0 0 0" />
+    <parent
+      link="Left_rocker" />
+    <child
+      link="FLW" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      effort="10"
+      velocity="10" />
+    <dynamics
+      damping="0.1"
+      friction="0.1" />
+  </joint>
+  <link
+    name="BLW">
+    <inertial>
+      <origin
+        xyz="0.046819 3.5758E-05 -2.0928E-06"
+        rpy="0 0 0" />
+      <mass
+        value="1.9116" />
+      <inertia
+        ixx="0.0081425"
+        ixy="3.124E-07"
+        ixz="-1.5506E-07"
+        iyy="0.005538"
+        iyz="5.3598E-06"
+        izz="0.005536" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/BLW.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.29804 0.29804 0.29804 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/BLW.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="back_left_wheel"
+    type="continuous">
+    <origin
+      xyz="-0.1908 -0.33792 -0.14727"
+      rpy="0 0 0" />
+    <parent
+      link="Left_rocker" />
+    <child
+      link="BLW" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      effort="10"
+      velocity="10" />
+    <dynamics
+      damping="0.1"
+      friction="0.1" />
+  </joint>
+  <link
+    name="right_bearing">
+    <inertial>
+      <origin
+        xyz="-0.0375975451201709 4.09735104872841E-05 0.00793222454703721"
+        rpy="0 0 0" />
+      <mass
+        value="0.103228679937266" />
+      <inertia
+        ixx="0.000119048427929717"
+        ixy="1.63845946925091E-08"
+        ixz="6.2730621061735E-07"
+        iyy="3.94984540603496E-05"
+        iyz="1.11513588884486E-07"
+        izz="0.000100286812792573" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/right_bearing.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/right_bearing.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="RBRING"
+    type="fixed">
+    <origin
+      xyz="0.213040000000001 0.00149999999999999 -0.0586"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="right_bearing" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="right_rocker">
+    <inertial>
+      <origin
+        xyz="0.00746260673077948 -0.0179855661205003 -0.00770361650125294"
+        rpy="0 0 0" />
+      <mass
+        value="4.92154306961454" />
+      <inertia
+        ixx="0.231464404649212"
+        ixy="0.000463596969351396"
+        ixz="0.000198568854552494"
+        iyy="0.0225839777700811"
+        iyz="-0.00473050366973788"
+        izz="0.214960276091944" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/right_rocker.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.650980392156863 0.619607843137255 0.588235294117647 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/right_rocker.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="rightrcker"
+    type="continuous">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="right_bearing" />
+    <child
+      link="right_rocker" />
+    <axis
+      xyz="-1 0 0" />
+  </joint>
+  <link
+    name="FRW">
+    <inertial>
+      <origin
+        xyz="-0.046819 -3.582E-05 -2.1026E-06"
+        rpy="0 0 0" />
+      <mass
+        value="1.9116" />
+      <inertia
+        ixx="0.0081425"
+        ixy="2.9499E-07"
+        ixz="1.5086E-07"
+        iyy="0.005538"
+        iyz="-5.3605E-06"
+        izz="0.005536" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/FRW.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.29804 0.29804 0.29804 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/FRW.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="front_right_wheel"
+    type="continuous">
+    <origin
+      xyz="0.1908 0.3537 -0.10217"
+      rpy="0 0 0" />
+    <parent
+      link="right_rocker" />
+    <child
+      link="FRW" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      effort="10"
+      velocity="10" />
+    <dynamics
+      damping="0.1"
+      friction="0.1" />
+  </joint>
+  <link
+    name="BRW">
+    <inertial>
+      <origin
+        xyz="-0.046819 -3.582E-05 -2.1026E-06"
+        rpy="0 0 0" />
+      <mass
+        value="1.9116" />
+      <inertia
+        ixx="0.0081425"
+        ixy="2.9499E-07"
+        ixz="1.5086E-07"
+        iyy="0.005538"
+        iyz="-5.3605E-06"
+        izz="0.005536" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/BRW.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.29804 0.29804 0.29804 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/BRW.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Back_right_wheel"
+    type="continuous">
+    <origin
+      xyz="0.1908 -0.32717 -0.16982"
+      rpy="0 0 0" />
+    <parent
+      link="right_rocker" />
+    <child
+      link="BRW" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      effort="10"
+      velocity="10" />
+    <dynamics
+      damping="0.1"
+      friction="0.1" />
+  </joint>
+  <link
+    name="enclsr">
+    <inertial>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <mass
+        value="0" />
+      <inertia
+        ixx="0"
+        ixy="0"
+        ixz="0"
+        iyy="0"
+        iyz="0"
+        izz="0" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/enclsr.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://sharkassm/meshes/enclsr.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="enclsr"
+    type="fixed">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="enclsr" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+</robot>

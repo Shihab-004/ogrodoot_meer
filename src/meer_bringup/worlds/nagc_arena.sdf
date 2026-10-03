@@ -17,6 +17,16 @@
       <real_time_factor>1.0</real_time_factor>
     </physics>
 
+    <!-- ── GNSS / Spherical Coordinates (NAGC 2026 Base Station) ────── -->
+    <spherical_coordinates>
+      <surface_model>EARTH_WGS84</surface_model>
+      <world_frame_orientation>ENU</world_frame_orientation>
+      <latitude_deg>23.810300</latitude_deg>
+      <longitude_deg>90.412500</longitude_deg>
+      <elevation>15.0</elevation>
+      <heading_deg>0</heading_deg>
+    </spherical_coordinates>
+
     <!-- ── System Plugins (Gazebo Harmonic) ───────────────────────────── -->
     <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
     <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>

@@ -19,7 +19,7 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, SetEnvironmentVariable
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
@@ -35,6 +35,13 @@ def generate_launch_description():
     pkg_meer_description = get_package_share_directory("meer_description")
     pkg_meer_bringup     = get_package_share_directory("meer_bringup")
     pkg_ros_gz_sim       = get_package_share_directory("ros_gz_sim")
+
+    # Ensure Gazebo Harmonic can locate package:// and model:// meshes
+    pkg_share_parent = os.path.dirname(pkg_meer_description)
+    workspace_src = os.path.join(os.path.expanduser("~/autonomous_meer"), "src")
+    gz_resource_path = os.environ.get("GZ_SIM_RESOURCE_PATH", "")
+    new_gz_resource_path = f"{pkg_share_parent}:{workspace_src}:{gz_resource_path}" if gz_resource_path else f"{pkg_share_parent}:{workspace_src}"
+    set_gz_resource_path = SetEnvironmentVariable("GZ_SIM_RESOURCE_PATH", new_gz_resource_path)
 
     default_world = os.path.join(pkg_meer_bringup, "worlds", "nagc_arena.sdf")
 
@@ -70,7 +77,7 @@ def generate_launch_description():
         "spawn_y", default_value="0.0", description="Spawn Y [m]."
     )
     declare_spawn_z_arg = DeclareLaunchArgument(
-        "spawn_z", default_value="0.25", description="Spawn Z [m]."
+        "spawn_z", default_value="0.10", description="Spawn Z [m]."
     )
 
     world        = LaunchConfiguration("world")
@@ -214,6 +221,7 @@ def generate_launch_description():
     # =========================================================================
     return LaunchDescription(
         [
+            set_gz_resource_path,
             declare_world_arg,
             declare_use_rviz_arg,
             declare_use_sim_time_arg,
