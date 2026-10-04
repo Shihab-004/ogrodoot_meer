@@ -19,7 +19,13 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, SetEnvironmentVariable
+from launch.actions import (
+    DeclareLaunchArgument,
+    ExecuteProcess,
+    IncludeLaunchDescription,
+    SetEnvironmentVariable,
+    TimerAction,
+)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
@@ -35,6 +41,7 @@ def generate_launch_description():
     pkg_meer_description = get_package_share_directory("meer_description")
     pkg_meer_bringup     = get_package_share_directory("meer_bringup")
     pkg_ros_gz_sim       = get_package_share_directory("ros_gz_sim")
+    pkg_meer_nav         = get_package_share_directory("meer_navigation")
 
     # Ensure Gazebo Harmonic can locate package:// and model:// meshes
     pkg_share_parent = os.path.dirname(pkg_meer_description)
@@ -77,16 +84,36 @@ def generate_launch_description():
         "spawn_y", default_value="0.0", description="Spawn Y [m]."
     )
     declare_spawn_z_arg = DeclareLaunchArgument(
-        "spawn_z", default_value="0.10", description="Spawn Z [m]."
+        "spawn_z", default_value="0.03", description="Spawn Z [m]."
+    )
+    declare_launch_vision_arg = DeclareLaunchArgument(
+        "launch_vision",
+        default_value="false",
+        description="Launch tree vitality computer vision subsystem within sim.",
     )
 
-    world        = LaunchConfiguration("world")
-    use_rviz     = LaunchConfiguration("use_rviz")
-    use_sim_time = LaunchConfiguration("use_sim_time")
-    robot_name   = LaunchConfiguration("robot_name")
-    spawn_x      = LaunchConfiguration("spawn_x")
-    spawn_y      = LaunchConfiguration("spawn_y")
-    spawn_z      = LaunchConfiguration("spawn_z")
+    declare_launch_nav_arg = DeclareLaunchArgument(
+        "launch_nav",
+        default_value="true",
+        description="Launch Nav2 autonomous navigation stack automatically.",
+    )
+
+    declare_use_camera_view_arg = DeclareLaunchArgument(
+        "use_camera_view",
+        default_value="true",
+        description="Launch live rover camera viewer (rover's eyes).",
+    )
+
+    world         = LaunchConfiguration("world")
+    use_rviz      = LaunchConfiguration("use_rviz")
+    use_camera_view = LaunchConfiguration("use_camera_view")
+    use_sim_time  = LaunchConfiguration("use_sim_time")
+    launch_vision = LaunchConfiguration("launch_vision")
+    launch_nav    = LaunchConfiguration("launch_nav")
+    robot_name    = LaunchConfiguration("robot_name")
+    spawn_x       = LaunchConfiguration("spawn_x")
+    spawn_y       = LaunchConfiguration("spawn_y")
+    spawn_z       = LaunchConfiguration("spawn_z")
 
     # ── URDF via xacro ───────────────────────────────────────────────────
     xacro_file = os.path.join(pkg_meer_description, "urdf", "meer_rover.urdf.xacro")
@@ -206,6 +233,7 @@ def generate_launch_description():
     )
 
     # =========================================================================
+    # =========================================================================
     # 6. Mission Arena Visualizer (Base Station, Waypoints, Boundary in RViz)
     # =========================================================================
     mission_markers = Node(
@@ -217,6 +245,74 @@ def generate_launch_description():
     )
 
     # =========================================================================
+    # 7. Tree Vitality Computer Vision Subsystem
+    # =========================================================================
+    tree_vitality_node = Node(
+        package="rover_vision",
+        executable="tree_vitality_node",
+        name="tree_vitality_node",
+        parameters=[{"use_sim_time": use_sim_time}],
+        condition=IfCondition(launch_vision),
+        output="screen",
+    )
+
+    # =========================================================================
+    # 8. Live Rover Onboard Camera Viewer (Rover's View)
+    # =========================================================================
+    camera_view = TimerAction(
+        period=2.0,
+        actions=[
+            Node(
+                package="rqt_image_view",
+                executable="rqt_image_view",
+                name="rover_camera_view",
+                arguments=["/camera/image_raw"],
+                condition=IfCondition(use_camera_view),
+                output="screen",
+            )
+        ],
+    )
+
+    # =========================================================================
+    # 9. Auto-unpause Gazebo Harmonic to guarantee /clock and /odom run
+    # =========================================================================
+    unpause_gz = TimerAction(
+        period=3.0,
+        actions=[
+            ExecuteProcess(
+                cmd=[
+                    "gz", "service", "-s", "/world/nagc_arena/control",
+                    "--reqtype", "gz.msgs.WorldControl",
+                    "--reptype", "gz.msgs.Boolean",
+                    "--req", "pause: false",
+                    "--timeout", "2000",
+                ],
+                output="log",
+            )
+        ],
+    )
+
+    # =========================================================================
+    # 10. Nav2 Autonomous Navigation Stack
+    # Starts at 4.0s (after auto-unpause at 3.0s and TF/clock are active)
+    # =========================================================================
+    nav2_stack = TimerAction(
+        period=4.0,
+        actions=[
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    os.path.join(pkg_meer_nav, "launch", "navigation.launch.py")
+                ),
+                launch_arguments={
+                    "use_sim_time": use_sim_time,
+                    "autostart": "true",
+                }.items(),
+                condition=IfCondition(launch_nav),
+            )
+        ],
+    )
+
+    # =========================================================================
     # Assemble LaunchDescription
     # =========================================================================
     return LaunchDescription(
@@ -224,7 +320,10 @@ def generate_launch_description():
             set_gz_resource_path,
             declare_world_arg,
             declare_use_rviz_arg,
+            declare_use_camera_view_arg,
             declare_use_sim_time_arg,
+            declare_launch_vision_arg,
+            declare_launch_nav_arg,
             declare_robot_name_arg,
             declare_spawn_x_arg,
             declare_spawn_y_arg,
@@ -234,6 +333,10 @@ def generate_launch_description():
             spawn_entity,
             ros_gz_bridge,
             rviz2,
+            camera_view,
             mission_markers,
+            tree_vitality_node,
+            unpause_gz,
+            nav2_stack,
         ]
     )

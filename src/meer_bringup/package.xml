@@ -18,6 +18,7 @@
   <exec_depend>meer_perception</exec_depend>
   <exec_depend>meer_navigation</exec_depend>
   <exec_depend>meer_mission_control</exec_depend>
+  <exec_depend>rover_vision</exec_depend>
   <exec_depend>ros2_control</exec_depend>
   <exec_depend>ros2_controllers</exec_depend>
   <exec_depend>gz_ros2_control</exec_depend>

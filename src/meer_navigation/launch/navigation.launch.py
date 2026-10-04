@@ -59,7 +59,6 @@ def generate_launch_description():
         "bt_navigator",
         "waypoint_follower",
         "velocity_smoother",
-        "collision_monitor",
     ]
 
     remappings = [
@@ -143,15 +142,7 @@ def generate_launch_description():
                 name="velocity_smoother",
                 output="screen",
                 parameters=[configured_params],
-                remappings=remappings + [("cmd_vel", "cmd_vel_nav")],
-            ),
-            Node(
-                package="nav2_collision_monitor",
-                executable="collision_monitor",
-                name="collision_monitor",
-                output="screen",
-                parameters=[configured_params],
-                remappings=remappings,
+                remappings=remappings + [("cmd_vel", "cmd_vel_nav"), ("cmd_vel_smoothed", "cmd_vel")],
             ),
             Node(
                 package="nav2_lifecycle_manager",

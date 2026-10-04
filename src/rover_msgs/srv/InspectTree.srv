@@ -1,0 +1,9 @@
+# InspectTree.srv
+# Service to trigger tree inspection and vitality analysis on-demand
+# Used when the rover reaches GPS Point 1
+
+bool save_snapshot
+---
+bool success
+rover_msgs/TreeVitality vitality
+string message

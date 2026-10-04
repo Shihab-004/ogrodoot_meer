@@ -1,0 +1,19 @@
+# =============================================================================
+# vision_params.yaml — MEER Rover Computer Vision Configuration
+# NAGC 2026 Autonomous Navigation Mission
+# =============================================================================
+
+tree_vitality_node:
+  ros__parameters:
+    use_sim_time: true
+    camera_topic: "/camera/image_raw"
+    classifier_type: "spectral"          # "spectral" or "deep_learning"
+    model_path: ""                       # Optional path to .onnx/.pt weights
+    auto_publish_continuous: true        # Periodic analysis
+    continuous_rate_hz: 2.0              # Hz
+    confidence_threshold: 0.50
+
+    # Deliverables & Logging Paths
+    output_dir: "/home/shihab/autonomous_meer/log/mission_submissions"
+    verdict_file_name: "tree_verdict.log"
+    snapshot_file_name: "tree_snapshot.jpg"

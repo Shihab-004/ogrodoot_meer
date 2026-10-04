@@ -4,17 +4,18 @@
   =======================================
   - Course Size: 53 m × 34 m
   - Base Station: 2 m × 2 m Zone at (0, 0)
-  - GPS Point 1: Tree Vitality Target at (16.0, 4.0)
+  - GPS Point 1: Designated Tree Vitality Target at (16.0, 4.0) (Official Inspection Target)
   - GPS Point 2: 360° Panorama Station at (30.0, -6.0)
-  - Terrain Obstacles: Rocks and barriers between waypoints
+  - Realistic terrain obstacles: Boulders, rock mounds, ditches, and boundary curbs
 -->
 <sdf version="1.8">
   <world name="nagc_arena">
 
-    <!-- ── Physics Configuration ──────────────────────────────────────── -->
-    <physics name="1ms" type="ignored">
-      <max_step_size>0.001</max_step_size>
+    <!-- ── Physics Configuration (4 ms step @ 250 Hz, solid 1.0 RTF) ────── -->
+    <physics name="fast_physics" type="ignored">
+      <max_step_size>0.004</max_step_size>
       <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>250</real_time_update_rate>
     </physics>
 
     <!-- ── GNSS / Spherical Coordinates (NAGC 2026 Base Station) ────── -->
@@ -37,16 +38,16 @@
     <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu"/>
     <plugin filename="gz-sim-navsat-system" name="gz::sim::systems::NavSat"/>
 
-    <!-- ── Sunlight & Atmosphere ──────────────────────────────────────── -->
+    <!-- ── Natural Outdoor Sunlight & Atmosphere (Fast Rendering) ───── -->
     <light type="directional" name="sun">
-      <cast_shadows>true</cast_shadows>
-      <pose>0 0 30 0 0 0</pose>
-      <diffuse>0.9 0.9 0.85 1</diffuse>
+      <cast_shadows>false</cast_shadows>
+      <pose>0 0 35 0 0 0</pose>
+      <diffuse>0.96 0.94 0.88 1</diffuse>
       <specular>0.3 0.3 0.3 1</specular>
-      <direction>-0.5 0.3 -0.9</direction>
+      <direction>-0.45 0.35 -0.82</direction>
     </light>
 
-    <!-- ── Ground Plane ───────────────────────────────────────────────── -->
+    <!-- ── Ground Plane (Textured Arena Earth Terrain) ────────────────── -->
     <model name="ground_plane">
       <static>true</static>
       <link name="link">
@@ -54,14 +55,14 @@
           <geometry>
             <plane>
               <normal>0 0 1</normal>
-              <size>100 100</size>
+              <size>120 120</size>
             </plane>
           </geometry>
           <surface>
             <friction>
               <ode>
-                <mu>1.0</mu>
-                <mu2>1.0</mu2>
+                <mu>1.2</mu>
+                <mu2>1.2</mu2>
               </ode>
             </friction>
           </surface>
@@ -70,19 +71,19 @@
           <geometry>
             <plane>
               <normal>0 0 1</normal>
-              <size>100 100</size>
+              <size>120 120</size>
             </plane>
           </geometry>
           <material>
-            <ambient>0.65 0.55 0.40 1</ambient>
-            <diffuse>0.65 0.55 0.40 1</diffuse>
-            <specular>0.1 0.1 0.1 1</specular>
+            <ambient>0.56 0.50 0.38 1</ambient>
+            <diffuse>0.56 0.50 0.38 1</diffuse>
+            <specular>0.08 0.08 0.08 1</specular>
           </material>
         </visual>
       </link>
     </model>
 
-    <!-- ── Base Station (2m × 2m Marked Zone at origin) ───────────────── -->
+    <!-- ── Base Station (2m × 2m Marked Launch Zone at 0, 0) ──────────── -->
     <model name="base_station">
       <static>true</static>
       <pose>0 0 0.002 0 0 0</pose>
@@ -92,42 +93,95 @@
             <box><size>2.0 2.0 0.004</size></box>
           </geometry>
           <material>
-            <ambient>0.9 0.8 0.1 1</ambient>
-            <diffuse>0.9 0.8 0.1 1</diffuse>
+            <ambient>0.92 0.82 0.15 1</ambient>
+            <diffuse>0.92 0.82 0.15 1</diffuse>
           </material>
+        </visual>
+        <!-- Border Frame -->
+        <visual name="border_n">
+          <pose>0 1.0 0.01 0 0 0</pose>
+          <geometry><box><size>2.04 0.08 0.02</size></box></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.1 0.1 0.1 1</diffuse></material>
+        </visual>
+        <visual name="border_s">
+          <pose>0 -1.0 0.01 0 0 0</pose>
+          <geometry><box><size>2.04 0.08 0.02</size></box></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.1 0.1 0.1 1</diffuse></material>
+        </visual>
+        <visual name="border_e">
+          <pose>1.0 0 0.01 0 0 0</pose>
+          <geometry><box><size>0.08 2.04 0.02</size></box></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.1 0.1 0.1 1</diffuse></material>
+        </visual>
+        <visual name="border_w">
+          <pose>-1.0 0 0.01 0 0 0</pose>
+          <geometry><box><size>0.08 2.04 0.02</size></box></geometry>
+          <material><ambient>0.1 0.1 0.1 1</ambient><diffuse>0.1 0.1 0.1 1</diffuse></material>
         </visual>
       </link>
     </model>
 
-    <!-- ── Arena Boundary Corner Markers (53m × 34m) ─────────────────── -->
-    <model name="boundary_marker_1">
+    <!-- ── Arena Boundary Curbs & Corner Markers (53m × 34m) ───────────── -->
+    <model name="arena_boundary_curbs">
       <static>true</static>
-      <pose>-3 -17 0.5 0 0 0</pose>
-      <link name="post"><visual name="v"><geometry><cylinder><radius>0.1</radius><length>1.0</length></cylinder></geometry><material><ambient>1 0.3 0 1</ambient><diffuse>1 0.3 0 1</diffuse></material></visual></link>
-    </model>
-    <model name="boundary_marker_2">
-      <static>true</static>
-      <pose>50 -17 0.5 0 0 0</pose>
-      <link name="post"><visual name="v"><geometry><cylinder><radius>0.1</radius><length>1.0</length></cylinder></geometry><material><ambient>1 0.3 0 1</ambient><diffuse>1 0.3 0 1</diffuse></material></visual></link>
-    </model>
-    <model name="boundary_marker_3">
-      <static>true</static>
-      <pose>50 17 0.5 0 0 0</pose>
-      <link name="post"><visual name="v"><geometry><cylinder><radius>0.1</radius><length>1.0</length></cylinder></geometry><material><ambient>1 0.3 0 1</ambient><diffuse>1 0.3 0 1</diffuse></material></visual></link>
-    </model>
-    <model name="boundary_marker_4">
-      <static>true</static>
-      <pose>-3 17 0.5 0 0 0</pose>
-      <link name="post"><visual name="v"><geometry><cylinder><radius>0.1</radius><length>1.0</length></cylinder></geometry><material><ambient>1 0.3 0 1</ambient><diffuse>1 0.3 0 1</diffuse></material></visual></link>
+      <!-- North Wall -->
+      <link name="curb_north">
+        <pose>23.5 17.0 0.12 0 0 0</pose>
+        <collision name="c"><geometry><box><size>55.0 0.3 0.24</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>55.0 0.3 0.24</size></box></geometry><material><ambient>0.75 0.35 0.15 1</ambient><diffuse>0.75 0.35 0.15 1</diffuse></material></visual>
+      </link>
+      <!-- South Wall -->
+      <link name="curb_south">
+        <pose>23.5 -17.0 0.12 0 0 0</pose>
+        <collision name="c"><geometry><box><size>55.0 0.3 0.24</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>55.0 0.3 0.24</size></box></geometry><material><ambient>0.75 0.35 0.15 1</ambient><diffuse>0.75 0.35 0.15 1</diffuse></material></visual>
+      </link>
+      <!-- East Wall -->
+      <link name="curb_east">
+        <pose>51.0 0.0 0.12 0 0 0</pose>
+        <collision name="c"><geometry><box><size>0.3 34.3 0.24</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.3 34.3 0.24</size></box></geometry><material><ambient>0.75 0.35 0.15 1</ambient><diffuse>0.75 0.35 0.15 1</diffuse></material></visual>
+      </link>
+      <!-- West Wall -->
+      <link name="curb_west">
+        <pose>-4.0 0.0 0.12 0 0 0</pose>
+        <collision name="c"><geometry><box><size>0.3 34.3 0.24</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.3 34.3 0.24</size></box></geometry><material><ambient>0.75 0.35 0.15 1</ambient><diffuse>0.75 0.35 0.15 1</diffuse></material></visual>
+      </link>
     </model>
 
-    <!-- ── GPS POINT 1: Designated Tree (Alive / Green Foliage) ──────── -->
-    <!-- Located at X=16.0, Y=4.0 -->
-    <model name="target_tree_point1">
+    <!-- Corner Pylons with High-Vis Stripes -->
+    <model name="corner_pylon_nw">
+      <static>true</static>
+      <pose>-4.0 17.0 0.6 0 0 0</pose>
+      <link name="p"><visual name="v"><geometry><cylinder><radius>0.15</radius><length>1.2</length></cylinder></geometry><material><ambient>1 0.4 0 1</ambient><diffuse>1 0.4 0 1</diffuse></material></visual></link>
+    </model>
+    <model name="corner_pylon_sw">
+      <static>true</static>
+      <pose>-4.0 -17.0 0.6 0 0 0</pose>
+      <link name="p"><visual name="v"><geometry><cylinder><radius>0.15</radius><length>1.2</length></cylinder></geometry><material><ambient>1 0.4 0 1</ambient><diffuse>1 0.4 0 1</diffuse></material></visual></link>
+    </model>
+    <model name="corner_pylon_ne">
+      <static>true</static>
+      <pose>51.0 17.0 0.6 0 0 0</pose>
+      <link name="p"><visual name="v"><geometry><cylinder><radius>0.15</radius><length>1.2</length></cylinder></geometry><material><ambient>1 0.4 0 1</ambient><diffuse>1 0.4 0 1</diffuse></material></visual></link>
+    </model>
+    <model name="corner_pylon_se">
+      <static>true</static>
+      <pose>51.0 -17.0 0.6 0 0 0</pose>
+      <link name="p"><visual name="v"><geometry><cylinder><radius>0.15</radius><length>1.2</length></cylinder></geometry><material><ambient>1 0.4 0 1</ambient><diffuse>1 0.4 0 1</diffuse></material></visual></link>
+    </model>
+
+
+    <!-- ================================================================= -->
+    <!-- ── GPS POINT 1: DESIGNATED ALIVE TREE (LUSH GREEN VIBRANT CANOPY) -->
+    <!-- Located at X=16.0, Y=4.0                                          -->
+    <!-- ================================================================= -->
+    <model name="target_tree_alive_point1">
       <static>true</static>
       <pose>16.0 4.0 0 0 0 0</pose>
 
-      <!-- Waypoint Ground Ring (1.5m radius zone) -->
+      <!-- Waypoint 1.5m Inspection Zone Ring (Cyan) -->
       <link name="waypoint_ring">
         <pose>0 0 0.003 0 0 0</pose>
         <visual name="ring_visual">
@@ -135,146 +189,254 @@
             <cylinder><radius>1.5</radius><length>0.002</length></cylinder>
           </geometry>
           <material>
-            <ambient>0.2 0.7 0.9 0.4</ambient>
-            <diffuse>0.2 0.7 0.9 0.4</diffuse>
+            <ambient>0.1 0.8 0.95 0.5</ambient>
+            <diffuse>0.1 0.8 0.95 0.5</diffuse>
           </material>
         </visual>
       </link>
 
-      <!-- Tree Trunk -->
+      <!-- Main Trunk (Dark Natural Wood Bark) -->
       <link name="trunk">
-        <pose>0 0 1.25 0 0 0</pose>
+        <pose>0 0 1.1 0 0 0</pose>
         <collision name="trunk_col">
-          <geometry><cylinder><radius>0.22</radius><length>2.5</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.24</radius><length>2.2</length></cylinder></geometry>
         </collision>
         <visual name="trunk_vis">
-          <geometry><cylinder><radius>0.22</radius><length>2.5</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.24</radius><length>2.2</length></cylinder></geometry>
           <material>
-            <ambient>0.4 0.25 0.15 1</ambient>
-            <diffuse>0.4 0.25 0.15 1</diffuse>
+            <ambient>0.34 0.21 0.11 1</ambient>
+            <diffuse>0.34 0.21 0.11 1</diffuse>
           </material>
         </visual>
       </link>
 
-      <!-- Tree Canopy / Foliage (Vibrant Alive Green) -->
-      <link name="canopy">
-        <pose>0 0 2.8 0 0 0</pose>
-        <collision name="canopy_col">
-          <geometry><sphere><radius>1.3</radius></sphere></geometry>
-        </collision>
-        <visual name="canopy_vis">
-          <geometry><sphere><radius>1.3</radius></sphere></geometry>
+      <!-- Trunk Root Flare at Base -->
+      <link name="root_flare">
+        <pose>0 0 0.15 0 0 0</pose>
+        <visual name="root_vis">
+          <geometry><cylinder><radius>0.38</radius><length>0.30</length></cylinder></geometry>
           <material>
-            <ambient>0.08 0.65 0.12 1</ambient>
-            <diffuse>0.08 0.65 0.12 1</diffuse>
+            <ambient>0.30 0.18 0.09 1</ambient>
+            <diffuse>0.30 0.18 0.09 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Major Branch 1 (Angled Left into Canopy) -->
+      <link name="branch_left">
+        <pose>0.10 0.30 1.95 0.5 -0.3 0.2</pose>
+        <visual name="b_vis">
+          <geometry><cylinder><radius>0.10</radius><length>0.85</length></cylinder></geometry>
+          <material><ambient>0.32 0.20 0.10 1</ambient><diffuse>0.32 0.20 0.10 1</diffuse></material>
+        </visual>
+      </link>
+
+      <!-- Major Branch 2 (Angled Right into Canopy) -->
+      <link name="branch_right">
+        <pose>0.10 -0.30 1.95 -0.5 -0.3 -0.2</pose>
+        <visual name="b_vis">
+          <geometry><cylinder><radius>0.10</radius><length>0.85</length></cylinder></geometry>
+          <material><ambient>0.32 0.20 0.10 1</ambient><diffuse>0.32 0.20 0.10 1</diffuse></material>
+        </visual>
+      </link>
+
+      <!-- ── Foliage Canopy: Multi-Cluster Lush Green Layers ────────── -->
+      <!-- Lower Tier Canopy - Left Foliar Cluster -->
+      <link name="foliage_lower_left">
+        <pose>0.20 0.65 2.55 0 0 0</pose>
+        <collision name="c"><geometry><sphere><radius>0.95</radius></sphere></geometry></collision>
+        <visual name="v">
+          <geometry><sphere><radius>0.95</radius></sphere></geometry>
+          <material>
+            <ambient>0.08 0.56 0.12 1</ambient>
+            <diffuse>0.08 0.56 0.12 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Lower Tier Canopy - Right Foliar Cluster -->
+      <link name="foliage_lower_right">
+        <pose>0.20 -0.65 2.55 0 0 0</pose>
+        <collision name="c"><geometry><sphere><radius>0.95</radius></sphere></geometry></collision>
+        <visual name="v">
+          <geometry><sphere><radius>0.95</radius></sphere></geometry>
+          <material>
+            <ambient>0.08 0.56 0.12 1</ambient>
+            <diffuse>0.08 0.56 0.12 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Mid Tier Canopy - Vibrant Lush Center -->
+      <link name="foliage_mid_center">
+        <pose>0.15 0.0 2.85 0 0 0</pose>
+        <collision name="c"><geometry><sphere><radius>1.25</radius></sphere></geometry></collision>
+        <visual name="v">
+          <geometry><sphere><radius>1.25</radius></sphere></geometry>
+          <material>
+            <ambient>0.11 0.68 0.15 1</ambient>
+            <diffuse>0.11 0.68 0.15 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Upper Crown - Bright Sunlit Foliar Top -->
+      <link name="foliage_crown_top">
+        <pose>0.0 0.0 3.75 0 0 0</pose>
+        <collision name="c"><geometry><sphere><radius>1.05</radius></sphere></geometry></collision>
+        <visual name="v">
+          <geometry><sphere><radius>1.05</radius></sphere></geometry>
+          <material>
+            <ambient>0.14 0.76 0.18 1</ambient>
+            <diffuse>0.14 0.76 0.18 1</diffuse>
           </material>
         </visual>
       </link>
     </model>
 
-    <!-- ── GPS POINT 2: 360° Panorama Station ────────────────────────── -->
-    <!-- Located at X=30.0, Y=-6.0 -->
+
+    <!--
+      NEGATIVE CONTROL: DEAD TREE (Inactive in Single-Tree Competition Mode)
+      To test dead tree detection, simply activate this model and swap coordinates.
+    <model name="negative_control_dead_tree">
+      ...
+    </model>
+    -->
+
+
+    <!-- ================================================================= -->
+    <!-- ── GPS POINT 2: 360° PANORAMA OBSERVATION STATION ─────────────── -->
+    <!-- Located at X=30.0, Y=-6.0                                         -->
+    <!-- ================================================================= -->
     <model name="panorama_station_point2">
       <static>true</static>
       <pose>30.0 -6.0 0 0 0 0</pose>
-      <!-- Waypoint Ground Ring (1.5m radius zone) -->
+      <!-- Waypoint 1.5m Zone Ring (Magenta) -->
       <link name="pad">
         <pose>0 0 0.003 0 0 0</pose>
         <visual name="pad_vis">
           <geometry><cylinder><radius>1.5</radius><length>0.002</length></cylinder></geometry>
           <material>
-            <ambient>0.8 0.2 0.9 0.4</ambient>
-            <diffuse>0.8 0.2 0.9 0.4</diffuse>
+            <ambient>0.85 0.2 0.9 0.45</ambient>
+            <diffuse>0.85 0.2 0.9 0.45</diffuse>
           </material>
         </visual>
       </link>
-      <!-- Small landmark flag/marker -->
+      <!-- Central Surveying Landmark Flag Mast -->
       <link name="pole">
-        <pose>0 0 1.0 0 0 0</pose>
+        <pose>0 0 1.2 0 0 0</pose>
         <collision name="pole_col">
-          <geometry><cylinder><radius>0.05</radius><length>2.0</length></cylinder></geometry>
+          <geometry><cylinder><radius>0.05</radius><length>2.4</length></cylinder></geometry>
         </collision>
         <visual name="pole_vis">
-          <geometry><cylinder><radius>0.05</radius><length>2.0</length></cylinder></geometry>
-          <material><ambient>0.9 0.1 0.1 1</ambient><diffuse>0.9 0.1 0.1 1</diffuse></material>
+          <geometry><cylinder><radius>0.05</radius><length>2.4</length></cylinder></geometry>
+          <material><ambient>0.92 0.15 0.15 1</ambient><diffuse>0.92 0.15 0.15 1</diffuse></material>
+        </visual>
+      </link>
+      <!-- Flag Topper Sphere -->
+      <link name="topper">
+        <pose>0 0 2.45 0 0 0</pose>
+        <visual name="v">
+          <geometry><sphere><radius>0.12</radius></sphere></geometry>
+          <material><ambient>1.0 0.85 0.1 1</ambient><diffuse>1.0 0.85 0.1 1</diffuse></material>
         </visual>
       </link>
     </model>
 
-    <!-- ── OBSTACLES: Rocks / Boulders Between Waypoints ──────────────── -->
 
-    <!-- Obstacle 1: Boulder on path to Point 1 -->
-    <model name="boulder_1">
+    <!-- ================================================================= -->
+    <!-- ── TERRAIN OBSTACLES: BOULDERS, ROCKS, DITCHES & HAZARDS ──────── -->
+    <!-- Zero physical contact requirement between Base and Waypoints     -->
+    <!-- ================================================================= -->
+
+    <!-- Obstacle 1: Large Boulder Cluster on Path to Point 1 -->
+    <model name="boulder_cluster_1">
       <static>true</static>
-      <pose>6.5 1.2 0.4 0 0 0.3</pose>
-      <link name="link">
-        <collision name="c">
-          <geometry><cylinder><radius>0.6</radius><length>0.8</length></cylinder></geometry>
-        </collision>
-        <visual name="v">
-          <geometry><cylinder><radius>0.6</radius><length>0.8</length></cylinder></geometry>
-          <material><ambient>0.35 0.35 0.35 1</ambient><diffuse>0.35 0.35 0.35 1</diffuse></material>
-        </visual>
+      <pose>6.5 1.4 0.45 0 0 0.3</pose>
+      <link name="rock_main">
+        <collision name="c"><geometry><cylinder><radius>0.65</radius><length>0.9</length></cylinder></geometry></collision>
+        <visual name="v"><geometry><cylinder><radius>0.65</radius><length>0.9</length></cylinder></geometry><material><ambient>0.42 0.40 0.38 1</ambient><diffuse>0.42 0.40 0.38 1</diffuse></material></visual>
+      </link>
+      <link name="rock_companion">
+        <pose>-0.5 0.6 -0.15 0.2 -0.1 0.8</pose>
+        <collision name="c"><geometry><sphere><radius>0.42</radius></sphere></geometry></collision>
+        <visual name="v"><geometry><sphere><radius>0.42</radius></sphere></geometry><material><ambient>0.38 0.36 0.34 1</ambient><diffuse>0.38 0.36 0.34 1</diffuse></material></visual>
       </link>
     </model>
 
-    <!-- Obstacle 2: Large rock block near Point 1 -->
-    <model name="rock_block_2">
+    <!-- Obstacle 2: Ditch / Trench Hazard Warning Curb -->
+    <model name="ditch_hazard_2">
       <static>true</static>
-      <pose>11.0 -0.8 0.45 0 0 0.5</pose>
-      <link name="link">
-        <collision name="c">
-          <geometry><box><size>1.3 0.9 0.9</size></box></geometry>
-        </collision>
-        <visual name="v">
-          <geometry><box><size>1.3 0.9 0.9</size></box></geometry>
-          <material><ambient>0.4 0.38 0.35 1</ambient><diffuse>0.4 0.38 0.35 1</diffuse></material>
-        </visual>
+      <pose>9.5 -2.2 0.25 0 0 0.25</pose>
+      <link name="ditch_barrier">
+        <collision name="c"><geometry><box><size>2.2 0.5 0.5</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>2.2 0.5 0.5</size></box></geometry><material><ambient>0.5 0.3 0.2 1</ambient><diffuse>0.5 0.3 0.2 1</diffuse></material></visual>
+      </link>
+      <!-- Warning Marker Post -->
+      <link name="warning_post">
+        <pose>1.0 0 0.5 0 0 0</pose>
+        <visual name="v"><geometry><cylinder><radius>0.06</radius><length>1.0</length></cylinder></geometry><material><ambient>0.95 0.4 0.05 1</ambient><diffuse>0.95 0.4 0.05 1</diffuse></material></visual>
       </link>
     </model>
 
-    <!-- Obstacle 3: Pillar rock off to the side -->
-    <model name="rock_pillar_3">
+    <!-- Obstacle 3: Angular Rock Block Before Waypoint 1 -->
+    <model name="rock_block_3">
       <static>true</static>
-      <pose>13.5 5.5 0.5 0 0 0</pose>
-      <link name="link">
-        <collision name="c">
-          <geometry><cylinder><radius>0.5</radius><length>1.0</length></cylinder></geometry>
-        </collision>
-        <visual name="v">
-          <geometry><cylinder><radius>0.5</radius><length>1.0</length></cylinder></geometry>
-          <material><ambient>0.3 0.3 0.32 1</ambient><diffuse>0.3 0.3 0.32 1</diffuse></material>
-        </visual>
+      <pose>11.5 -0.6 0.5 0 0 0.45</pose>
+      <link name="block">
+        <collision name="c"><geometry><box><size>1.4 0.95 1.0</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>1.4 0.95 1.0</size></box></geometry><material><ambient>0.45 0.42 0.40 1</ambient><diffuse>0.45 0.42 0.40 1</diffuse></material></visual>
       </link>
     </model>
 
-    <!-- Obstacle 4: Large rock barrier between Point 1 and Point 2 -->
-    <model name="boulder_4">
+    <!-- Obstacle 4: Central Divider Pillar (Deactivated for open single-tree corridor)
+    <model name="center_divider_pillar_4">
+      ...
+    </model>
+    -->
+
+    <!-- Obstacle 5: Rock Mound on Waypoint 1 Flank -->
+    <model name="rock_mound_5">
       <static>true</static>
-      <pose>23.0 -1.0 0.5 0 0 0.2</pose>
+      <pose>13.5 6.2 0.55 0 0 0</pose>
       <link name="link">
-        <collision name="c">
-          <geometry><cylinder><radius>0.85</radius><length>1.0</length></cylinder></geometry>
-        </collision>
-        <visual name="v">
-          <geometry><cylinder><radius>0.85</radius><length>1.0</length></cylinder></geometry>
-          <material><ambient>0.38 0.35 0.32 1</ambient><diffuse>0.38 0.35 0.32 1</diffuse></material>
-        </visual>
+        <collision name="c"><geometry><cylinder><radius>0.55</radius><length>1.1</length></cylinder></geometry></collision>
+        <visual name="v"><geometry><cylinder><radius>0.55</radius><length>1.1</length></cylinder></geometry><material><ambient>0.38 0.38 0.40 1</ambient><diffuse>0.38 0.38 0.40 1</diffuse></material></visual>
       </link>
     </model>
 
-    <!-- Obstacle 5: Rock ridge obstacle near Point 2 -->
-    <model name="rock_barrier_5">
+    <!-- Obstacle 6: Large Boulder Barrier Between Waypoint 1 and Waypoint 2 -->
+    <model name="boulder_barrier_6">
       <static>true</static>
-      <pose>26.0 3.0 0.45 0 0 -0.4</pose>
+      <pose>22.5 -1.2 0.55 0 0 0.25</pose>
+      <link name="main_boulder">
+        <collision name="c"><geometry><cylinder><radius>0.9</radius><length>1.1</length></cylinder></geometry></collision>
+        <visual name="v"><geometry><cylinder><radius>0.9</radius><length>1.1</length></cylinder></geometry><material><ambient>0.44 0.40 0.36 1</ambient><diffuse>0.44 0.40 0.36 1</diffuse></material></visual>
+      </link>
+      <link name="secondary_rock">
+        <pose>0.8 -0.6 -0.15 0 0 0.4</pose>
+        <collision name="c"><geometry><box><size>0.9 0.8 0.8</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.9 0.8 0.8</size></box></geometry><material><ambient>0.40 0.38 0.35 1</ambient><diffuse>0.40 0.38 0.35 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- Obstacle 7: Rock Ridge Obstacle on Waypoint 2 Approach -->
+    <model name="rock_ridge_7">
+      <static>true</static>
+      <pose>26.5 2.5 0.5 0 0 -0.35</pose>
+      <link name="ridge">
+        <collision name="c"><geometry><box><size>1.7 0.85 1.0</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>1.7 0.85 1.0</size></box></geometry><material><ambient>0.36 0.36 0.36 1</ambient><diffuse>0.36 0.36 0.36 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- Obstacle 8: Approach Boulder Near Waypoint 2 -->
+    <model name="boulder_near_wp2_8">
+      <static>true</static>
+      <pose>28.0 -3.5 0.45 0 0 0</pose>
       <link name="link">
-        <collision name="c">
-          <geometry><box><size>1.6 0.8 0.9</size></box></geometry>
-        </collision>
-        <visual name="v">
-          <geometry><box><size>1.6 0.8 0.9</size></box></geometry>
-          <material><ambient>0.32 0.32 0.32 1</ambient><diffuse>0.32 0.32 0.32 1</diffuse></material>
-        </visual>
+        <collision name="c"><geometry><cylinder><radius>0.6</radius><length>0.9</length></cylinder></geometry></collision>
+        <visual name="v"><geometry><cylinder><radius>0.6</radius><length>0.9</length></cylinder></geometry><material><ambient>0.42 0.38 0.36 1</ambient><diffuse>0.42 0.38 0.36 1</diffuse></material></visual>
       </link>
     </model>
 
