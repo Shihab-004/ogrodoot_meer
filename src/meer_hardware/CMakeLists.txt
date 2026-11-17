@@ -45,6 +45,11 @@ install(FILES meer_hardware_plugin.xml
   DESTINATION share/${PROJECT_NAME}
 )
 
+install(PROGRAMS
+  scripts/esp32_bridge.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_export_include_directories(include)
 ament_export_libraries(meer_hardware)
 ament_export_targets(export_meer_hardware)
