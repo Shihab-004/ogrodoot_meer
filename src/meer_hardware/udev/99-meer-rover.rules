@@ -1,0 +1,15 @@
+# MEER rover persistent USB names.  Install on the Pi:
+#   sudo cp 99-meer-rover.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+#
+# Cheap ESP/LiDAR USB chips (CH340 / CP2102) often share the same idVendor/idProduct
+# and have no unique serial, so we match by PHYSICAL USB PORT (KERNELS).
+# Find each device's port with:
+#   udevadm info -a -n /dev/ttyUSB0 | grep -m1 'KERNELS=="[0-9]-'
+#   (or simply run:  ros2 run meer_hardware find_rover_ports.sh)
+# then replace the KERNELS values below. Keep each device in the same USB socket.
+
+SUBSYSTEM=="tty", KERNELS=="1-1", SYMLINK+="rover_motor",   MODE="0666"
+SUBSYSTEM=="tty", KERNELS=="1-2", SYMLINK+="rover_encoder", MODE="0666"
+SUBSYSTEM=="tty", KERNELS=="3-1", SYMLINK+="rplidar",       MODE="0666"
+SUBSYSTEM=="video4linux", KERNELS=="3-2*", ATTR{index}=="0", SYMLINK+="rover_camera", MODE="0666"

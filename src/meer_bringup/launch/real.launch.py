@@ -12,11 +12,14 @@
 #   6. (Optional) RViz2 Visualization
 #
 # Hardware Architecture:
-#   - Motor ESP32 (Actuator): /dev/ttyUSB0 (Cytron MDDS30, cmd_vel subscriber)
-#   - Encoder ESP32 (Sensor):  /dev/ttyUSB1 (Wheel encoders, /odom & TF publisher)
+#   - Motor ESP (NodeMCU):  /dev/rover_motor   ("x,y" -100..100 over USB serial, 115200)
+#   - Encoder+GPS ESP:      /dev/rover_encoder ("L,R" tick lines, /odom & TF publisher)
+#   - LiDAR:                /dev/rplidar       (published as /lidar/scan)
+#   Symlinks come from src/meer_hardware/udev/99-meer-rover.rules
 #
 # Usage:
 #   ros2 launch meer_bringup real.launch.py
+#   ros2 launch meer_bringup real.launch.py launch_lidar:=true
 #   ros2 launch meer_bringup real.launch.py motor_port:=/dev/ttyUSB0 encoder_port:=/dev/ttyUSB1
 #   ros2 launch meer_bringup real.launch.py launch_nav:=false
 # =============================================================================
@@ -41,6 +44,16 @@ from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 
 
+def _pkg_available(name):
+    """True if a ROS package is installed (so a missing driver never crashes the launch)."""
+    try:
+        get_package_share_directory(name)
+        return True
+    except Exception:
+        print(f"[real.launch] WARNING: package '{name}' not installed -> skipping its node.")
+        return False
+
+
 def generate_launch_description():
     pkg_meer_description = get_package_share_directory("meer_description")
     pkg_meer_nav         = get_package_share_directory("meer_navigation")
@@ -50,14 +63,44 @@ def generate_launch_description():
     # Dual ESP32 Serial Ports
     declare_motor_port_arg = DeclareLaunchArgument(
         "motor_port",
-        default_value="/dev/ttyUSB0",
+        default_value="/dev/rover_motor",
         description="Serial port for Motor ESP32 actuator (Cytron MDDS30).",
     )
 
     declare_encoder_port_arg = DeclareLaunchArgument(
         "encoder_port",
-        default_value="/dev/ttyUSB1",
+        default_value="/dev/rover_encoder",
         description="Serial port for Encoder ESP32 sensor (Wheel Odometry).",
+    )
+
+    declare_motor_transport_arg = DeclareLaunchArgument(
+        "motor_transport",
+        default_value="serial",
+        description="'serial' (\"x,y\" over USB cable to motor_port) or 'udp' (Pi must be on ESP WiFi).",
+    )
+
+    declare_esp_ip_arg = DeclareLaunchArgument(
+        "esp_ip",
+        default_value="192.168.1.82",
+        description="Static IP of the Motor ESP (NodeMCU) on the Team_Ogrodoot WiFi.",
+    )
+
+    declare_max_wheel_speed_arg = DeclareLaunchArgument(
+        "max_wheel_speed",
+        default_value="1.0",
+        description="Wheel speed (m/s) the rover reaches at 100% command. Measure and set.",
+    )
+
+    declare_min_cmd_percent_arg = DeclareLaunchArgument(
+        "min_cmd_percent",
+        default_value="20",
+        description="Smallest motor % that actually moves the rover (deadband).",
+    )
+
+    declare_odom_source_arg = DeclareLaunchArgument(
+        "odom_source",
+        default_value="auto",
+        description="'encoder', 'cmd_vel' (open-loop) or 'auto' (encoder if data arrives).",
     )
 
     declare_baud_rate_arg = DeclareLaunchArgument(
@@ -67,6 +110,12 @@ def generate_launch_description():
     )
 
     # Simulation / Clock Argument
+    declare_encoder_baud_arg = DeclareLaunchArgument(
+        "encoder_baud",
+        default_value="115200",
+        description="Baud rate of the Encoder + GPS ESP.",
+    )
+
     declare_use_sim_time_arg = DeclareLaunchArgument(
         "use_sim_time",
         default_value="false",
@@ -107,14 +156,32 @@ def generate_launch_description():
 
     declare_launch_lidar_arg = DeclareLaunchArgument(
         "launch_lidar",
-        default_value="false",
+        default_value="true",
         description="Launch hardware LiDAR driver (e.g. RPLiDAR / SLLiDAR).",
     )
 
     declare_lidar_port_arg = DeclareLaunchArgument(
         "lidar_port",
-        default_value="/dev/ttyUSB2",
+        default_value="/dev/rplidar",
         description="Serial port for 2D LiDAR.",
+    )
+
+    declare_lidar_baud_arg = DeclareLaunchArgument(
+        "lidar_baud",
+        default_value="115200",
+        description="LiDAR baud: RPLIDAR A1/A2 = 115200, C1 = 460800, A3/S1 = 256000.",
+    )
+
+    declare_launch_camera_arg = DeclareLaunchArgument(
+        "launch_camera",
+        default_value="true",
+        description="Launch USB webcam driver (v4l2_camera) -> /camera/image_raw.",
+    )
+
+    declare_camera_device_arg = DeclareLaunchArgument(
+        "camera_device",
+        default_value="/dev/video0",
+        description="V4L2 webcam device.",
     )
 
     declare_launch_vision_arg = DeclareLaunchArgument(
@@ -133,6 +200,7 @@ def generate_launch_description():
     motor_port       = LaunchConfiguration("motor_port")
     encoder_port     = LaunchConfiguration("encoder_port")
     baud_rate        = LaunchConfiguration("baud_rate")
+    encoder_baud     = LaunchConfiguration("encoder_baud")
     use_sim_time     = LaunchConfiguration("use_sim_time")
     wheel_radius     = LaunchConfiguration("wheel_radius")
     track_width      = LaunchConfiguration("track_width")
@@ -141,8 +209,16 @@ def generate_launch_description():
     launch_nav       = LaunchConfiguration("launch_nav")
     launch_lidar     = LaunchConfiguration("launch_lidar")
     lidar_port       = LaunchConfiguration("lidar_port")
+    lidar_baud       = LaunchConfiguration("lidar_baud")
+    launch_camera    = LaunchConfiguration("launch_camera")
+    camera_device    = LaunchConfiguration("camera_device")
     launch_vision    = LaunchConfiguration("launch_vision")
     use_rviz         = LaunchConfiguration("use_rviz")
+    motor_transport  = LaunchConfiguration("motor_transport")
+    esp_ip           = LaunchConfiguration("esp_ip")
+    max_wheel_speed  = LaunchConfiguration("max_wheel_speed")
+    min_cmd_percent  = LaunchConfiguration("min_cmd_percent")
+    odom_source      = LaunchConfiguration("odom_source")
 
     # ── 3. Robot Description (URDF via Xacro, Real Hardware Mode) ───────────
     xacro_file = os.path.join(pkg_meer_description, "urdf", "meer_rover.urdf.xacro")
@@ -185,6 +261,7 @@ def generate_launch_description():
                 "motor_port": motor_port,
                 "encoder_port": encoder_port,
                 "baud_rate": ParameterValue(baud_rate, value_type=int),
+                "encoder_baud": ParameterValue(encoder_baud, value_type=int),
                 "wheel_radius": ParameterValue(wheel_radius, value_type=float),
                 "track_width": ParameterValue(track_width, value_type=float),
                 "ticks_per_rev": ParameterValue(ticks_per_rev, value_type=float),
@@ -192,7 +269,13 @@ def generate_launch_description():
                 "odom_frame": "odom",
                 "base_frame": "base_footprint",
                 "cmd_vel_timeout": 0.5,
-                "command_format": "vel",
+                "motor_transport": motor_transport,
+                "esp_ip": esp_ip,
+                "esp_udp_port": 4210,
+                "max_wheel_speed": ParameterValue(max_wheel_speed, value_type=float),
+                "min_cmd_percent": ParameterValue(min_cmd_percent, value_type=int),
+                "heartbeat_hz": 10.0,
+                "odom_source": odom_source,
             }
         ],
     )
@@ -219,14 +302,35 @@ def generate_launch_description():
             {
                 "channel_type": "serial",
                 "serial_port": lidar_port,
-                "serial_baudrate": 115200,
+                "serial_baudrate": ParameterValue(lidar_baud, value_type=int),
                 "frame_id": "lidar_link",
                 "inverted": False,
                 "angle_compensate": True,
-                "scan_mode": "Sensitivity",
             }
         ],
+        # Nav2 costmaps listen on /lidar/scan (same as simulation)
+        remappings=[("scan", "/lidar/scan")],
         condition=IfCondition(launch_lidar),
+    )
+
+    # D2. USB Webcam driver -> /camera/image_raw (used by vision + mission runner)
+    camera_node = Node(
+        package="v4l2_camera",
+        executable="v4l2_camera_node",
+        name="camera",
+        output="screen",
+        parameters=[
+            {
+                "video_device": camera_device,
+                "image_size": [1920, 1080],
+                "camera_frame_id": "camera_optical_link",
+            }
+        ],
+        remappings=[
+            ("image_raw", "/camera/image_raw"),
+            ("camera_info", "/camera/camera_info"),
+        ],
+        condition=IfCondition(launch_camera),
     )
 
     # E. Optional Tree Vitality AI Vision Subsystem
@@ -260,6 +364,12 @@ def generate_launch_description():
             declare_motor_port_arg,
             declare_encoder_port_arg,
             declare_baud_rate_arg,
+            declare_encoder_baud_arg,
+            declare_motor_transport_arg,
+            declare_esp_ip_arg,
+            declare_max_wheel_speed_arg,
+            declare_min_cmd_percent_arg,
+            declare_odom_source_arg,
             declare_use_sim_time_arg,
             declare_wheel_radius_arg,
             declare_track_width_arg,
@@ -268,11 +378,15 @@ def generate_launch_description():
             declare_launch_nav_arg,
             declare_launch_lidar_arg,
             declare_lidar_port_arg,
+            declare_lidar_baud_arg,
+            declare_launch_camera_arg,
+            declare_camera_device_arg,
             declare_launch_vision_arg,
             declare_use_rviz_arg,
             robot_state_publisher,
             esp32_bridge_node,
-            lidar_node,
+            *([lidar_node] if _pkg_available("sllidar_ros2") else []),
+            *([camera_node] if _pkg_available("v4l2_camera") else []),
             tree_vitality_node,
             nav2_stack,
             rviz2,

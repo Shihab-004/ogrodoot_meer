@@ -26,6 +26,7 @@
 # =============================================================================
 
 import math
+import socket
 import threading
 import time
 from typing import Optional, Tuple
@@ -57,7 +58,8 @@ class DualESP32Bridge(Node):
         # Serial ports
         self.declare_parameter('motor_port', '/dev/ttyUSB0')
         self.declare_parameter('encoder_port', '/dev/ttyUSB1')
-        self.declare_parameter('baud_rate', 115200)
+        self.declare_parameter('baud_rate', 115200)        # motor ESP baud
+        self.declare_parameter('encoder_baud', 115200)     # encoder/GPS ESP baud
         self.declare_parameter('serial_timeout', 0.1)
         self.declare_parameter('reconnect_interval', 2.0)
 
@@ -73,10 +75,23 @@ class DualESP32Bridge(Node):
         self.declare_parameter('invert_right_encoder', False)
 
         # Protocol & Commands
-        self.declare_parameter('command_format', 'vel')   # 'vel' (m/s) or 'pwm' (-255..255)
-        self.declare_parameter('max_wheel_speed', 2.0)    # m/s max for PWM mapping
-        self.declare_parameter('pwm_max', 255)
-        self.declare_parameter('cmd_vel_timeout', 0.5)    # seconds before watchdog stop
+        # Motor ESP (NodeMCU) firmware protocol: "x,y" string, x = turn, y = drive,
+        # both -100..100. ESP mixes left = y + x, right = y - x.
+        #   motor_transport = 'serial' -> send "x,y\n" over the USB cable to motor_port (default,
+        #                                works on any WiFi; needs updated rover_esp firmware)
+        #   motor_transport = 'udp'    -> send "x,y" to esp_ip:esp_udp_port (Pi must be on the ESP's WiFi)
+        self.declare_parameter('motor_transport', 'serial')
+        self.declare_parameter('esp_ip', '192.168.1.82')
+        self.declare_parameter('esp_udp_port', 4210)
+        self.declare_parameter('max_wheel_speed', 1.0)     # m/s of a wheel at 100% command
+        self.declare_parameter('min_cmd_percent', 20)      # deadband: smallest % that actually moves motors
+        self.declare_parameter('heartbeat_hz', 10.0)       # resend rate (ESP watchdog = 1.5 s)
+        self.declare_parameter('cmd_vel_timeout', 0.5)     # seconds before we command stop
+
+        # Odometry source: 'encoder' | 'cmd_vel' | 'auto'
+        #   auto -> use encoder ticks when they arrive, otherwise integrate the
+        #           commanded velocity (open-loop) so Nav2 always has odom + TF.
+        self.declare_parameter('odom_source', 'auto')
 
         # Frames & TF
         self.declare_parameter('odom_frame', 'odom')
@@ -89,6 +104,7 @@ class DualESP32Bridge(Node):
         self.motor_port: str = self.get_parameter('motor_port').value
         self.encoder_port: str = self.get_parameter('encoder_port').value
         self.baud_rate: int = int(self.get_parameter('baud_rate').value)
+        self.encoder_baud: int = int(self.get_parameter('encoder_baud').value)
         self.serial_timeout: float = float(self.get_parameter('serial_timeout').value)
         self.reconnect_interval: float = float(self.get_parameter('reconnect_interval').value)
 
@@ -101,10 +117,14 @@ class DualESP32Bridge(Node):
         self.inv_left_enc: bool = bool(self.get_parameter('invert_left_encoder').value)
         self.inv_right_enc: bool = bool(self.get_parameter('invert_right_encoder').value)
 
-        self.command_format: str = str(self.get_parameter('command_format').value).lower()
+        self.motor_transport: str = str(self.get_parameter('motor_transport').value).lower()
+        self.esp_ip: str = str(self.get_parameter('esp_ip').value)
+        self.esp_udp_port: int = int(self.get_parameter('esp_udp_port').value)
         self.max_wheel_speed: float = float(self.get_parameter('max_wheel_speed').value)
-        self.pwm_max: int = int(self.get_parameter('pwm_max').value)
+        self.min_cmd_percent: int = int(self.get_parameter('min_cmd_percent').value)
+        self.heartbeat_hz: float = float(self.get_parameter('heartbeat_hz').value)
         self.cmd_vel_timeout: float = float(self.get_parameter('cmd_vel_timeout').value)
+        self.odom_source: str = str(self.get_parameter('odom_source').value).lower()
 
         self.odom_frame: str = str(self.get_parameter('odom_frame').value)
         self.base_frame: str = str(self.get_parameter('base_frame').value)
@@ -113,8 +133,12 @@ class DualESP32Bridge(Node):
         self.get_logger().info('====================================================')
         self.get_logger().info('      MEER Rover Dual-ESP32 Serial Bridge Node      ')
         self.get_logger().info('====================================================')
-        self.get_logger().info(f'Motor Port   (Actuator): {self.motor_port} @ {self.baud_rate} baud')
-        self.get_logger().info(f'Encoder Port (Sensor)  : {self.encoder_port} @ {self.baud_rate} baud')
+        if self.motor_transport == 'udp':
+            self.get_logger().info(f'Motor ESP    (Actuator): UDP {self.esp_ip}:{self.esp_udp_port} ("x,y" -100..100)')
+        else:
+            self.get_logger().info(f'Motor Port   (Actuator): {self.motor_port} @ {self.baud_rate} baud ("x,y")')
+        self.get_logger().info(f'Odometry source        : {self.odom_source}')
+        self.get_logger().info(f'Encoder Port (Sensor)  : {self.encoder_port} @ {self.encoder_baud} baud')
         self.get_logger().info(f'Kinematics             : Radius={self.wheel_radius}m, Track={self.track_width}m')
         self.get_logger().info(f'Frames                 : odom="{self.odom_frame}" -> base="{self.base_frame}" (TF={self.publish_tf})')
 
@@ -133,6 +157,15 @@ class DualESP32Bridge(Node):
         # Watchdog & Activity Tracking
         self._last_cmd_vel_time = 0.0
         self._motors_active = False
+        self._cmd_x = 0          # current turn command  (-100..100)
+        self._cmd_y = 0          # current drive command (-100..100)
+        self._cmd_lin = 0.0      # last commanded linear.x  (for open-loop odom)
+        self._cmd_ang = 0.0      # last commanded angular.z (for open-loop odom)
+        self._udp_sock: Optional[socket.socket] = None
+        self._last_udp_err_log = 0.0
+        self._last_encoder_time = 0.0
+        self._last_raw_log = 0.0
+        self._last_cmd_odom_time: Optional[float] = None
 
         # Odometry State Variables (Midpoint Runge-Kutta)
         self.x = 0.0
@@ -165,8 +198,13 @@ class DualESP32Bridge(Node):
             self.get_logger().fatal('PySerial is NOT installed! Run: sudo apt install python3-serial')
             return
 
-        self._open_motor_serial(log_failure=True)
-        self._open_encoder_serial(log_failure=True)
+        if self.motor_transport == 'udp':
+            self._udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self._motor_connected = True
+        else:
+            self._open_motor_serial(log_failure=True)
+        if self.odom_source != 'cmd_vel':
+            self._open_encoder_serial(log_failure=True)
 
         # ---------------------------------------------------------------------
         # 6. Start Encoder Reader Thread (Dedicated Sensor Reading)
@@ -181,8 +219,13 @@ class DualESP32Bridge(Node):
         # ---------------------------------------------------------------------
         # 7. Timers: Watchdog & Reconnection Checker
         # ---------------------------------------------------------------------
-        # Watchdog timer (20 Hz): safely stops motors if /cmd_vel ceases
-        self._watchdog_timer = self.create_timer(0.05, self._watchdog_callback)
+        # Heartbeat + watchdog: resend the current command continuously so the
+        # ESP 1.5 s watchdog never trips while driving; send 0,0 when /cmd_vel stops.
+        self._watchdog_timer = self.create_timer(
+            1.0 / max(self.heartbeat_hz, 1.0), self._watchdog_callback)
+
+        # Open-loop odometry fallback (20 Hz)
+        self._cmd_odom_timer = self.create_timer(0.05, self._cmd_odom_callback)
 
         # Auto-reconnect timer (runs every reconnect_interval seconds)
         self._reconnect_timer = self.create_timer(self.reconnect_interval, self._reconnect_callback)
@@ -197,12 +240,16 @@ class DualESP32Bridge(Node):
             if self._motor_ser is not None and self._motor_ser.is_open:
                 return True
             try:
-                self._motor_ser = serial.Serial(
-                    port=self.motor_port,
-                    baudrate=self.baud_rate,
-                    timeout=self.serial_timeout,
-                    write_timeout=self.serial_timeout,
-                )
+                ser = serial.Serial()
+                ser.port = self.motor_port
+                ser.baudrate = self.baud_rate
+                ser.timeout = self.serial_timeout
+                ser.write_timeout = self.serial_timeout
+                # Do not toggle DTR/RTS: on NodeMCU that resets / holds the ESP in reset
+                ser.dtr = False
+                ser.rts = False
+                ser.open()
+                self._motor_ser = ser
                 self._motor_connected = True
                 self.get_logger().info(f'[MOTOR SERIAL] Connected successfully to {self.motor_port}')
                 return True
@@ -221,11 +268,14 @@ class DualESP32Bridge(Node):
         if self._encoder_ser is not None and self._encoder_ser.is_open:
             return True
         try:
-            self._encoder_ser = serial.Serial(
-                port=self.encoder_port,
-                baudrate=self.baud_rate,
-                timeout=self.serial_timeout,
-            )
+            ser = serial.Serial()
+            ser.port = self.encoder_port
+            ser.baudrate = self.encoder_baud
+            ser.timeout = self.serial_timeout
+            ser.dtr = False
+            ser.rts = False
+            ser.open()
+            self._encoder_ser = ser
             self._encoder_connected = True
             self.get_logger().info(f'[ENCODER SERIAL] Connected successfully to {self.encoder_port}')
             return True
@@ -262,10 +312,10 @@ class DualESP32Bridge(Node):
 
     def _reconnect_callback(self) -> None:
         """Periodically checks and attempts to reconnect disconnected ports."""
-        if not self._motor_connected:
+        if self.motor_transport != 'udp' and not self._motor_connected:
             if self._open_motor_serial(log_failure=False):
                 self.get_logger().info(f'[MOTOR SERIAL] Reconnected to {self.motor_port}!')
-        if not self._encoder_connected:
+        if self.odom_source != 'cmd_vel' and not self._encoder_connected:
             if self._open_encoder_serial(log_failure=False):
                 self.get_logger().info(f'[ENCODER SERIAL] Reconnected to {self.encoder_port}!')
 
@@ -275,86 +325,145 @@ class DualESP32Bridge(Node):
 
     def _cmd_vel_callback(self, msg: Twist) -> None:
         """
-        Receives geometry_msgs/Twist from Nav2 or teleoperation.
-        Calculates differential velocities and transmits them ONLY to the Motor ESP32.
+        Receives geometry_msgs/Twist from Nav2 / teleop / mission runner and
+        converts it to the motor ESP "x,y" protocol (-100..100).
         """
         self._last_cmd_vel_time = time.time()
         self._motors_active = True
 
         linear_x = msg.linear.x
         angular_z = msg.angular.z
+        self._cmd_lin = linear_x
+        self._cmd_ang = angular_z
 
-        # Differential / 4WD Skid-Steer kinematics
-        # v_left  = v - (omega * track_width / 2)
-        # v_right = v + (omega * track_width / 2)
+        # Differential / skid-steer kinematics (ROS: +angular.z = turn LEFT)
         v_left = linear_x - (angular_z * self.track_width / 2.0)
         v_right = linear_x + (angular_z * self.track_width / 2.0)
 
-        # Apply motor direction inversion if configured
         if self.inv_left_mot:
             v_left = -v_left
         if self.inv_right_mot:
             v_right = -v_right
 
-        self._send_motor_command(v_left, v_right)
+        # Wheel speed -> percent
+        max_v = max(self.max_wheel_speed, 1e-3)
+        left_pct = v_left / max_v * 100.0
+        right_pct = v_right / max_v * 100.0
 
-    def _send_motor_command(self, v_left: float, v_right: float) -> None:
-        """Formats and writes the command string/bytes ONLY to motor_port."""
-        if not self._motor_connected or self._motor_ser is None:
+        # Keep both wheels inside -100..100 while preserving the turn ratio
+        peak = max(abs(left_pct), abs(right_pct))
+        if peak > 100.0:
+            left_pct *= 100.0 / peak
+            right_pct *= 100.0 / peak
+
+        # Deadband compensation: tiny commands would not move a heavy rover
+        left_pct = self._apply_deadband(left_pct)
+        right_pct = self._apply_deadband(right_pct)
+
+        # ESP mixes left = y + x, right = y - x  ->  invert that mixing
+        y = (left_pct + right_pct) / 2.0
+        x = (left_pct - right_pct) / 2.0
+
+        self._cmd_x = int(round(max(-100.0, min(100.0, x))))
+        self._cmd_y = int(round(max(-100.0, min(100.0, y))))
+        self._send_motor_command(self._cmd_x, self._cmd_y)
+
+    def _apply_deadband(self, pct: float) -> float:
+        if abs(pct) < 1.0:
+            return 0.0
+        floor = float(self.min_cmd_percent)
+        if abs(pct) < floor:
+            return math.copysign(floor, pct)
+        return pct
+
+    def _send_motor_command(self, x: int, y: int) -> None:
+        """Sends "x,y" to the Motor ESP over UDP (default) or USB serial."""
+        payload = f"{x},{y}"
+
+        if self.motor_transport == 'udp':
+            if self._udp_sock is None:
+                return
+            try:
+                self._udp_sock.sendto(payload.encode('ascii'), (self.esp_ip, self.esp_udp_port))
+            except OSError as exc:
+                now = time.time()
+                if now - self._last_udp_err_log > 3.0:
+                    self._last_udp_err_log = now
+                    self.get_logger().error(
+                        f'[MOTOR UDP] send to {self.esp_ip}:{self.esp_udp_port} failed: {exc} '
+                        '(is the Pi on the same WiFi as the ESP?)')
             return
 
-        if self.command_format == 'pwm':
-            # Sign-magnitude PWM mapping (-pwm_max to +pwm_max)
-            scale = self.pwm_max / max(self.max_wheel_speed, 1e-3)
-            pwm_l = int(max(-self.pwm_max, min(self.pwm_max, v_left * scale)))
-            pwm_r = int(max(-self.pwm_max, min(self.pwm_max, v_right * scale)))
-            cmd_line = f"M,{pwm_l},{pwm_r}\n"
-        else:
-            # Default: Direct velocity commands in m/s (e.g. CMD,0.350,-0.120)
-            cmd_line = f"CMD,{v_left:.3f},{v_right:.3f}\n"
-
-        packet = cmd_line.encode('utf-8')
-
+        if not self._motor_connected or self._motor_ser is None:
+            return
         with self._motor_lock:
             try:
-                self._motor_ser.write(packet)
+                self._motor_ser.write((payload + "\n").encode('ascii'))
                 self._motor_ser.flush()
             except (serial.SerialException, OSError) as exc:
                 self.get_logger().error(f"[MOTOR SERIAL] Write error on '{self.motor_port}': {exc}")
                 self._close_motor_serial()
 
     def _send_motor_stop(self) -> None:
-        """Sends an explicit zero-velocity / STOP packet to the Motor ESP32."""
-        if not self._motor_connected or self._motor_ser is None:
-            return
-
-        if self.command_format == 'pwm':
-            packet = b"M,0,0\n"
-        else:
-            packet = b"CMD,0.000,0.000\n"
-
-        with self._motor_lock:
-            try:
-                self._motor_ser.write(packet)
-                self._motor_ser.flush()
-            except (serial.SerialException, OSError) as exc:
-                self.get_logger().error(f"[MOTOR SERIAL] Stop command failed on '{self.motor_port}': {exc}")
-                self._close_motor_serial()
+        """Sends an explicit 0,0 STOP packet to the Motor ESP."""
+        self._cmd_x = 0
+        self._cmd_y = 0
+        self._cmd_lin = 0.0
+        self._cmd_ang = 0.0
+        self._send_motor_command(0, 0)
 
     def _watchdog_callback(self) -> None:
         """
-        Watchdog safety check: if no new /cmd_vel was received within
-        cmd_vel_timeout, command the Motor ESP32 to STOP immediately.
+        Runs at heartbeat_hz. While /cmd_vel is fresh it re-sends the last
+        command (keeps the ESP watchdog fed). If /cmd_vel stops for longer than
+        cmd_vel_timeout it sends STOP (0,0) continuously.
         """
+        if self._motors_active and (time.time() - self._last_cmd_vel_time) > self.cmd_vel_timeout:
+            self.get_logger().warn(
+                '[MOTOR] Watchdog: no /cmd_vel received. Halting motors.',
+                throttle_duration_sec=3.0
+            )
+            self._motors_active = False
+            self._send_motor_stop()
+            return
+
         if self._motors_active:
-            elapsed = time.time() - self._last_cmd_vel_time
-            if elapsed > self.cmd_vel_timeout:
-                self.get_logger().warn(
-                    f'[MOTOR SERIAL] Watchdog triggered: no /cmd_vel for {elapsed:.2f}s. Halting motors.',
-                    throttle_duration_sec=3.0
-                )
-                self._send_motor_stop()
-                self._motors_active = False
+            self._send_motor_command(self._cmd_x, self._cmd_y)
+        else:
+            self._send_motor_command(0, 0)
+
+    def _use_encoder_odom(self) -> bool:
+        if self.odom_source == 'encoder':
+            return True
+        if self.odom_source == 'cmd_vel':
+            return False
+        return (time.time() - self._last_encoder_time) < 1.0   # auto
+
+    def _cmd_odom_callback(self) -> None:
+        """Open-loop odometry from commanded velocity (fallback when no encoder data)."""
+        now = time.time()
+        if self._use_encoder_odom():
+            self._last_cmd_odom_time = None
+            return
+        if self._last_cmd_odom_time is None:
+            self._last_cmd_odom_time = now
+            self.get_logger().warn(
+                '[ODOM] No encoder data -> using open-loop odometry from /cmd_vel.',
+                throttle_duration_sec=10.0)
+            return
+        dt = now - self._last_cmd_odom_time
+        self._last_cmd_odom_time = now
+
+        v = self._cmd_lin if self._motors_active else 0.0
+        w = self._cmd_ang if self._motors_active else 0.0
+        with self._odom_lock:
+            mid_yaw = self.yaw + w * dt / 2.0
+            self.x += v * dt * math.cos(mid_yaw)
+            self.y += v * dt * math.sin(mid_yaw)
+            self.yaw = math.atan2(math.sin(self.yaw + w * dt), math.cos(self.yaw + w * dt))
+            self.vx, self.vtheta = v, w
+            x, y, yaw = self.x, self.y, self.yaw
+        self._publish_odometry(self.get_clock().now(), x, y, yaw, v, w)
 
     # =========================================================================
     # Encoder ESP32 (Sensor): Background Thread & Odometry Computation
@@ -389,7 +498,11 @@ class DualESP32Bridge(Node):
                 self._close_encoder_serial()
                 time.sleep(1.0)
             except Exception as e:
-                self.get_logger().warn(f"[ENCODER SERIAL] Unexpected error parsing line: {e}")
+                if not self._running:
+                    break   # port closed during shutdown
+                self.get_logger().warn(
+                    f"[ENCODER SERIAL] Unexpected error: {e}", throttle_duration_sec=5.0)
+                time.sleep(0.1)
 
     def _parse_ticks(self, line: str) -> Optional[Tuple[int, int]]:
         """
@@ -426,7 +539,12 @@ class DualESP32Bridge(Node):
         """Decodes raw encoder ticks, updates kinematics, and publishes odometry."""
         parsed = self._parse_ticks(line)
         if parsed is None:
+            now = time.time()
+            if now - self._last_raw_log > 5.0:
+                self._last_raw_log = now
+                self.get_logger().warn(f'[ENCODER SERIAL] Unrecognised line (expected "L,R" ticks): {line!r}')
             return
+        self._last_encoder_time = time.time()
 
         left_ticks, right_ticks = parsed
 
@@ -439,7 +557,8 @@ class DualESP32Bridge(Node):
         ros_time = self.get_clock().now()
 
         with self._odom_lock:
-            if self._prev_left_ticks is None or self._prev_right_ticks is None or self._prev_odom_time is None:
+            if (self._prev_left_ticks is None or self._prev_right_ticks is None
+                    or self._prev_odom_time is None or (now - self._prev_odom_time) > 1.0):
                 # First reading: establish baseline tick references
                 self._prev_left_ticks = left_ticks
                 self._prev_right_ticks = right_ticks
@@ -577,6 +696,8 @@ class DualESP32Bridge(Node):
 
         self._close_motor_serial()
         self._close_encoder_serial()
+        if self._udp_sock is not None:
+            self._udp_sock.close()
 
         return super().destroy_node()
 

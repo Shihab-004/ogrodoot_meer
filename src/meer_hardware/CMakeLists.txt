@@ -47,7 +47,13 @@ install(FILES meer_hardware_plugin.xml
 
 install(PROGRAMS
   scripts/esp32_bridge.py
+  scripts/test_motor.py
+  scripts/find_rover_ports.sh
   DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY udev/
+  DESTINATION share/${PROJECT_NAME}/udev
 )
 
 ament_export_include_directories(include)
