@@ -93,6 +93,9 @@ class DualESP32Bridge(Node):
         self.declare_parameter('esp_udp_port', 4210)
         self.declare_parameter('max_wheel_speed', 1.0)     # m/s of a wheel at 100% command
         self.declare_parameter('min_cmd_percent', 40)      # deadband: smallest % that moves the rover (firmware: 40 -> 20% PWM)
+        # Soft-start: max increase of motor command per second (prevents current
+        # spikes that brown-out / reset the motor ESP). Decreases are immediate.
+        self.declare_parameter('motor_ramp_percent_per_sec', 80.0)
         self.declare_parameter('heartbeat_hz', 10.0)       # resend rate (ESP watchdog = 1.5 s)
         self.declare_parameter('cmd_vel_timeout', 0.5)     # seconds before we command stop
 
@@ -137,6 +140,7 @@ class DualESP32Bridge(Node):
         self.max_wheel_speed: float = float(self.get_parameter('max_wheel_speed').value)
         self.min_cmd_percent: int = int(self.get_parameter('min_cmd_percent').value)
         self.heartbeat_hz: float = float(self.get_parameter('heartbeat_hz').value)
+        self.motor_ramp: float = float(self.get_parameter('motor_ramp_percent_per_sec').value)
         self.cmd_vel_timeout: float = float(self.get_parameter('cmd_vel_timeout').value)
         self.odom_source: str = str(self.get_parameter('odom_source').value).lower()
 
@@ -171,6 +175,9 @@ class DualESP32Bridge(Node):
         # Watchdog & Activity Tracking
         self._last_cmd_vel_time = 0.0
         self._motors_active = False
+        self._out_x = 0.0        # ramped values actually sent to the ESP
+        self._out_y = 0.0
+        self._last_ramp_time = time.time()
         self._cmd_x = 0          # current turn command  (-100..100)
         self._cmd_y = 0          # current drive command (-100..100)
         self._cmd_lin = 0.0      # last commanded linear.x  (for open-loop odom)
@@ -218,6 +225,9 @@ class DualESP32Bridge(Node):
 
         if self.motor_transport == 'udp':
             self._udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            # Allow broadcast (esp_ip 255.255.255.255): works on a phone hotspot where
+            # the ESP gets a random DHCP address.
+            self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
             self._motor_connected = True
         else:
             self._open_motor_serial(log_failure=True)
@@ -391,7 +401,24 @@ class DualESP32Bridge(Node):
 
         self._cmd_x = int(round(max(-100.0, min(100.0, x))))
         self._cmd_y = int(round(max(-100.0, min(100.0, y))))
-        self._send_motor_command(self._cmd_x, self._cmd_y)
+        self._send_ramped()
+
+    def _ramp_value(self, out: float, target: float, step: float) -> float:
+        # Reduce magnitude / reverse through zero immediately, ramp only increases.
+        if target == 0.0 or (out != 0.0 and (target > 0) != (out > 0)):
+            return 0.0 if target == 0.0 else math.copysign(min(abs(target), step), target)
+        if abs(target) <= abs(out):
+            return target
+        return math.copysign(min(abs(target), abs(out) + step), target)
+
+    def _send_ramped(self) -> None:
+        now = time.time()
+        dt = min(max(now - self._last_ramp_time, 0.0), 0.2)
+        self._last_ramp_time = now
+        step = self.motor_ramp * dt if self.motor_ramp > 0 else 1000.0
+        self._out_x = self._ramp_value(self._out_x, float(self._cmd_x), step)
+        self._out_y = self._ramp_value(self._out_y, float(self._cmd_y), step)
+        self._send_motor_command(int(round(self._out_x)), int(round(self._out_y)))
 
     def _apply_deadband(self, pct: float) -> float:
         if abs(pct) < 1.0:
@@ -433,6 +460,8 @@ class DualESP32Bridge(Node):
         """Sends an explicit 0,0 STOP packet to the Motor ESP."""
         self._cmd_x = 0
         self._cmd_y = 0
+        self._out_x = 0.0
+        self._out_y = 0.0
         self._cmd_lin = 0.0
         self._cmd_ang = 0.0
         self._send_motor_command(0, 0)
@@ -453,8 +482,10 @@ class DualESP32Bridge(Node):
             return
 
         if self._motors_active:
-            self._send_motor_command(self._cmd_x, self._cmd_y)
+            self._send_ramped()
         else:
+            self._out_x = 0.0
+            self._out_y = 0.0
             self._send_motor_command(0, 0)
 
     def _use_encoder_odom(self) -> bool:

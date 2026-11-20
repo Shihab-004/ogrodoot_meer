@@ -93,14 +93,14 @@ def generate_launch_description():
 
     declare_motor_transport_arg = DeclareLaunchArgument(
         "motor_transport",
-        default_value="serial",
+        default_value="udp",
         description="'serial' (\"x,y\" over USB cable to motor_port) or 'udp' (Pi must be on ESP WiFi).",
     )
 
     declare_esp_ip_arg = DeclareLaunchArgument(
         "esp_ip",
-        default_value="192.168.1.82",
-        description="Static IP of the Motor ESP (NodeMCU) on the Team_Ogrodoot WiFi.",
+        default_value="255.255.255.255",
+        description="Motor ESP address. 255.255.255.255 = broadcast (works on hotspot and router).",
     )
 
     declare_max_wheel_speed_arg = DeclareLaunchArgument(
