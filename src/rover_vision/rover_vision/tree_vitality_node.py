@@ -58,7 +58,7 @@ class TreeVitalityNode(Node):
 
         # ── Internal Components ──────────────────────────────────────────────
         self.bridge = CvBridge()
-        self.latest_cv_frame: Optional[cv2.Mat] = None
+        self.latest_cv_frame: Optional[np.ndarray] = None
         self.latest_header = None
         self.latest_result: Optional[VitalityResult] = None
         self.latest_detection: Optional[DetectionResult] = None
@@ -122,7 +122,7 @@ class TreeVitalityNode(Node):
             except Exception as e2:
                 self.get_logger().warn(f"Failed to decode image message: {e2}")
 
-    def process_frame(self, frame_bgr: cv2.Mat):
+    def process_frame(self, frame_bgr: np.ndarray):
         """Executes full detection -> ROI -> vitality classification pipeline."""
         # 1. Tree Detection and Localization
         detection = self.detector.detect(frame_bgr)

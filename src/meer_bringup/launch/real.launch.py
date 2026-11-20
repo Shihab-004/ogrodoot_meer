@@ -111,7 +111,7 @@ def generate_launch_description():
 
     declare_min_cmd_percent_arg = DeclareLaunchArgument(
         "min_cmd_percent",
-        default_value="20",
+        default_value="40",
         description="Smallest motor % that actually moves the rover (deadband).",
     )
 

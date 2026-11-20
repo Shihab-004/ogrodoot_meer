@@ -92,7 +92,7 @@ class DualESP32Bridge(Node):
         self.declare_parameter('esp_ip', '192.168.1.82')
         self.declare_parameter('esp_udp_port', 4210)
         self.declare_parameter('max_wheel_speed', 1.0)     # m/s of a wheel at 100% command
-        self.declare_parameter('min_cmd_percent', 20)      # deadband: smallest % that actually moves motors
+        self.declare_parameter('min_cmd_percent', 40)      # deadband: smallest % that moves the rover (firmware: 40 -> 20% PWM)
         self.declare_parameter('heartbeat_hz', 10.0)       # resend rate (ESP watchdog = 1.5 s)
         self.declare_parameter('cmd_vel_timeout', 0.5)     # seconds before we command stop
 
