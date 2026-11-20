@@ -34,6 +34,8 @@ from typing import Optional, Tuple
 from geometry_msgs.msg import TransformStamped, Twist
 from nav_msgs.msg import Odometry
 import rclpy
+from sensor_msgs.msg import NavSatFix, NavSatStatus
+from std_msgs.msg import Float64
 from rclpy.node import Node
 import tf2_ros
 
@@ -66,7 +68,13 @@ class DualESP32Bridge(Node):
         # Kinematics & Physical Parameters (from MEER CAD / URDF)
         self.declare_parameter('wheel_radius', 0.1155)    # meters (115.5 mm)
         self.declare_parameter('track_width', 0.8184)     # meters (818.4 mm)
-        self.declare_parameter('ticks_per_rev', 2000.0)   # encoder ticks per full wheel turn
+        self.declare_parameter('ticks_per_rev', 2000.0)   # fallback if left/right not set
+        # Tooth-wheel encoders: left disc 14 teeth (1 broken), right disc 15 teeth
+        self.declare_parameter('ticks_per_rev_left', 14.0)
+        self.declare_parameter('ticks_per_rev_right', 15.0)
+        # Single-channel encoders only count up -> direction taken from the motor command
+        self.declare_parameter('encoder_signed', False)
+        self.declare_parameter('max_ticks_per_sample', 40)  # bigger jump = noise / ESP reset
 
         # Inversion & Calibration Flags
         self.declare_parameter('invert_left_motor', False)
@@ -111,6 +119,12 @@ class DualESP32Bridge(Node):
         self.wheel_radius: float = float(self.get_parameter('wheel_radius').value)
         self.track_width: float = float(self.get_parameter('track_width').value)
         self.ticks_per_rev: float = float(self.get_parameter('ticks_per_rev').value)
+        tl = float(self.get_parameter('ticks_per_rev_left').value)
+        tr = float(self.get_parameter('ticks_per_rev_right').value)
+        self.ticks_left: float = tl if tl > 0 else self.ticks_per_rev
+        self.ticks_right: float = tr if tr > 0 else self.ticks_per_rev
+        self.encoder_signed: bool = bool(self.get_parameter('encoder_signed').value)
+        self.max_ticks_per_sample: int = int(self.get_parameter('max_ticks_per_sample').value)
 
         self.inv_left_mot: bool = bool(self.get_parameter('invert_left_motor').value)
         self.inv_right_mot: bool = bool(self.get_parameter('invert_right_motor').value)
@@ -161,6 +175,8 @@ class DualESP32Bridge(Node):
         self._cmd_y = 0          # current drive command (-100..100)
         self._cmd_lin = 0.0      # last commanded linear.x  (for open-loop odom)
         self._cmd_ang = 0.0      # last commanded angular.z (for open-loop odom)
+        self._dir_left = 1.0     # wheel direction for unsigned encoders (+1 fwd / -1 back)
+        self._dir_right = 1.0
         self._udp_sock: Optional[socket.socket] = None
         self._last_udp_err_log = 0.0
         self._last_encoder_time = 0.0
@@ -182,6 +198,8 @@ class DualESP32Bridge(Node):
         # 4. Publishers, Subscribers & TF Broadcaster
         # ---------------------------------------------------------------------
         self._odom_pub = self.create_publisher(Odometry, '/odom', 20)
+        self._gps_pub = self.create_publisher(NavSatFix, '/gps/fix', 10)
+        self._heading_pub = self.create_publisher(Float64, '/compass/heading', 10)
         self._tf_broadcaster = tf2_ros.TransformBroadcaster(self)
 
         self._cmd_vel_sub = self.create_subscription(
@@ -339,6 +357,13 @@ class DualESP32Bridge(Node):
         # Differential / skid-steer kinematics (ROS: +angular.z = turn LEFT)
         v_left = linear_x - (angular_z * self.track_width / 2.0)
         v_right = linear_x + (angular_z * self.track_width / 2.0)
+
+        # Remember physical wheel direction for the single-channel encoders.
+        # When the command is ~0 keep the last direction (rover may still coast).
+        if abs(v_left) > 1e-3:
+            self._dir_left = 1.0 if v_left > 0 else -1.0
+        if abs(v_right) > 1e-3:
+            self._dir_right = 1.0 if v_right > 0 else -1.0
 
         if self.inv_left_mot:
             v_left = -v_left
@@ -537,6 +562,12 @@ class DualESP32Bridge(Node):
 
     def _process_encoder_line(self, line: str) -> None:
         """Decodes raw encoder ticks, updates kinematics, and publishes odometry."""
+        if line.startswith('#'):
+            return  # info line from the ESP
+        if line.startswith('GPS:'):
+            self._process_gps_line(line[4:])
+            return
+
         parsed = self._parse_ticks(line)
         if parsed is None:
             now = time.time()
@@ -547,12 +578,6 @@ class DualESP32Bridge(Node):
         self._last_encoder_time = time.time()
 
         left_ticks, right_ticks = parsed
-
-        if self.inv_left_enc:
-            left_ticks = -left_ticks
-        if self.inv_right_enc:
-            right_ticks = -right_ticks
-
         now = time.time()
         ros_time = self.get_clock().now()
 
@@ -576,10 +601,28 @@ class DualESP32Bridge(Node):
             self._prev_right_ticks = right_ticks
             self._prev_odom_time = now
 
-            # Distance moved per tick = (2 * pi * wheel_radius) / ticks_per_rev
-            dist_per_tick = (2.0 * math.pi * self.wheel_radius) / max(self.ticks_per_rev, 1.0)
-            dist_l = delta_l * dist_per_tick
-            dist_r = delta_r * dist_per_tick
+            if not self.encoder_signed:
+                # Counts only go up. A negative or huge jump means the ESP
+                # restarted or a noise burst -> skip this sample.
+                if (delta_l < 0 or delta_r < 0
+                        or delta_l > self.max_ticks_per_sample
+                        or delta_r > self.max_ticks_per_sample):
+                    self.get_logger().warn(
+                        f'[ENCODER] Ignoring jump dL={delta_l} dR={delta_r} (ESP reset/noise).',
+                        throttle_duration_sec=5.0)
+                    return
+                delta_l *= self._dir_left
+                delta_r *= self._dir_right
+
+            if self.inv_left_enc:
+                delta_l = -delta_l
+            if self.inv_right_enc:
+                delta_r = -delta_r
+
+            # Distance per tick = wheel circumference / ticks per revolution
+            circumference = 2.0 * math.pi * self.wheel_radius
+            dist_l = delta_l * circumference / max(self.ticks_left, 1.0)
+            dist_r = delta_r * circumference / max(self.ticks_right, 1.0)
 
             # Differential kinematic displacement & yaw change
             delta_s = (dist_r + dist_l) / 2.0
@@ -606,6 +649,44 @@ class DualESP32Bridge(Node):
 
         # Publish Odometry & TF
         self._publish_odometry(ros_time, x, y, yaw, vx, vtheta)
+
+    def _process_gps_line(self, payload: str) -> None:
+        """Parses 'yaw,lat,lng,sats,fix' and publishes /gps/fix and /compass/heading."""
+        parts = [p.strip() for p in payload.split(',')]
+        if len(parts) < 3:
+            return
+        try:
+            yaw_deg = float(parts[0])
+            lat = float(parts[1])
+            lng = float(parts[2])
+            sats = int(parts[3]) if len(parts) > 3 else 0
+            fix = int(parts[4]) if len(parts) > 4 else int(lat != 0.0 or lng != 0.0)
+        except ValueError:
+            return
+
+        stamp = self.get_clock().now().to_msg()
+
+        heading = Float64()
+        heading.data = yaw_deg
+        self._heading_pub.publish(heading)
+
+        msg = NavSatFix()
+        msg.header.stamp = stamp
+        msg.header.frame_id = 'gps_link'
+        msg.status.service = NavSatStatus.SERVICE_GPS
+        msg.status.status = NavSatStatus.STATUS_FIX if fix else NavSatStatus.STATUS_NO_FIX
+        msg.latitude = lat
+        msg.longitude = lng
+        msg.altitude = 0.0
+        # NEO-6M: roughly 2.5 m horizontal accuracy with a fix
+        var = 6.25 if fix else 1e6
+        msg.position_covariance = [var, 0.0, 0.0, 0.0, var, 0.0, 0.0, 0.0, var * 4]
+        msg.position_covariance_type = NavSatFix.COVARIANCE_TYPE_APPROXIMATED
+        self._gps_pub.publish(msg)
+        if sats or fix:
+            self.get_logger().info(
+                f'[GPS] fix={fix} sats={sats} lat={lat:.6f} lng={lng:.6f} yaw={yaw_deg:.1f}',
+                throttle_duration_sec=10.0)
 
     def _publish_odometry(
         self,

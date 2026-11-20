@@ -11,7 +11,9 @@ LiDAR ──USB──► /lidar/scan ──► Nav2 costmap
 
 * Pi মোবাইল হটস্পটে থাকলেও সমস্যা নেই — মোটর কমান্ড **USB ক্যাবল দিয়ে** যায়, WiFi লাগে না।
 * মোটর ESP-এর প্রোটোকল: `"x,y"` (x = turn, y = drive, -100..100), 115200 baud। ১.৫ সেকেন্ড কমান্ড না এলে মোটর নিজে থেকে থামে।
+* এনকোডার: দাঁতওয়ালা চাকা — বাম ১৪ দাঁত (GPIO 34), ডান ১৫ দাঁত (GPIO 35)। এনকোডার দিক বোঝে না, তাই Pi মোটর কমান্ড থেকে দিক (+/-) বসায়।
 * এনকোডার ডেটা না এলে bridge নিজে থেকে `/cmd_vel` থেকে open-loop odom বানায়, যাতে Nav2 আটকে না যায়।
+* GPS + কম্পাস → `/gps/fix`, `/compass/heading` (waypoint-এর জন্য বাধ্যতামূলক নয়)।
 
 ---
 
@@ -30,7 +32,18 @@ Firmware: `manual_rover/meer_2.0_ruet_rover/rover_esp` (আপনার গে�
    ```
 3. চেক: `pio device monitor` → `USB Serial control ready` লেখা আসবে। এরপর ESP-টি আবার Pi-এর USB-তে লাগান।
 
-> এনকোডার/GPS ESP (`gps_esp`)-তে কিছু আপলোড করতে হবে না।
+### A1b. এনকোডার + GPS ESP32-তে নতুন firmware — **ল্যাপটপ থেকে**
+
+Firmware: `manual_rover/meer_2.0_ruet_rover/encoder_gps_esp` (পুরোনো `gps_esp`-এর GPS/কম্পাস কোড + এনকোডার)।
+1. ESP32-টি ল্যাপটপে লাগান, VS Code-এ `encoder_gps_esp` ফোল্ডার খুলে PlatformIO → **Upload**, অথবা:
+   ```bash
+   cd ~/manual_rover/meer_2.0_ruet_rover/encoder_gps_esp && pio run -t upload
+   ```
+2. চেক: `pio device monitor` → প্রতি সেকেন্ডে অনেকগুলো `ENC:0,0` আর `GPS:...` লাইন আসবে।
+3. চাকা হাত দিয়ে এক পাক ঘোরান → বাম চাকায় সংখ্যা **১৪** বাড়বে, ডান চাকায় **১৫**।
+   * ২৮/৩০ বাড়লে (দ্বিগুণ) → `src/main.cpp`-এ `ENC_EDGE RISING` বদলে `FALLING` দিন অথবা `ENC_DEBOUNCE_US` বাড়ান।
+   * একদম না বাড়লে → সিগন্যাল তার/ভোল্টেজ চেক করুন (GPIO 34/35-এ সর্বোচ্চ 3.3V, internal pull-up নেই)।
+4. ESP32-টি আবার Pi-এর USB-তে লাগান।
 
 ### A2. Pi-তে GitHub SSH key (একবার)
 
@@ -137,9 +150,10 @@ pkill -9 -f "nav2|ros2|tree_vitality|autonomous_mission|lidar|esp32_bridge" || t
 **Terminal 1 (Pi):** হার্ডওয়্যার + LiDAR + Nav2
 ```bash
 cd ~/ogrodoot_meer && source install/setup.bash
-ros2 launch meer_bringup real.launch.py odom_source:=cmd_vel
+ros2 launch meer_bringup real.launch.py
 ```
-> এনকোডার ESP-এর ফরম্যাট নিশ্চিত না হওয়া পর্যন্ত `odom_source:=cmd_vel` দিন (ভুল ডেটা থেকে odom নষ্ট হবে না)। LiDAR + ক্যামেরা ডিফল্টে চালু হয়।
+> মোটর NodeMCU (CH340) আর RPLidar A2M12 (CP2102)-এর পোর্ট launch নিজেই খুঁজে নেয়; LiDAR baud ডিফল্ট 256000; odom ডিফল্ট `cmd_vel` (এনকোডার ছাড়া)।
+> হাতে পোর্ট দিতে চাইলে: `motor_port:=/dev/ttyUSB0 lidar_port:=/dev/ttyUSB1`। এনকোডার ঠিক হলে: `odom_source:=encoder`।
 
 **Terminal 2 (Pi):** Vision
 ```bash

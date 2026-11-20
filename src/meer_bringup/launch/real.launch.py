@@ -24,6 +24,7 @@
 #   ros2 launch meer_bringup real.launch.py launch_nav:=false
 # =============================================================================
 
+import glob
 import os
 
 from ament_index_python.packages import get_package_share_directory
@@ -42,6 +43,23 @@ from launch.substitutions import (
 )
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
+
+
+def _find_port(patterns, fallback):
+    """Pick a serial port by USB chip name (stable even if ttyUSB numbers change)."""
+    for pattern in patterns:
+        hits = sorted(glob.glob(pattern))
+        if hits:
+            return os.path.realpath(hits[0])
+    return fallback
+
+
+# Motor NodeMCU uses a CH340 chip (1a86), RPLidar A2M12 uses a CP2102 (Silicon Labs).
+DEFAULT_MOTOR_PORT = _find_port(
+    ["/dev/rover_motor", "/dev/serial/by-id/*1a86*", "/dev/serial/by-id/*CH340*"], "/dev/ttyUSB0")
+DEFAULT_LIDAR_PORT = _find_port(
+    ["/dev/rplidar", "/dev/serial/by-id/*Silicon_Labs*", "/dev/serial/by-id/*CP210*"], "/dev/ttyUSB1")
+DEFAULT_ENCODER_PORT = _find_port(["/dev/rover_encoder"], "/dev/rover_encoder")
 
 
 def _pkg_available(name):
@@ -63,13 +81,13 @@ def generate_launch_description():
     # Dual ESP32 Serial Ports
     declare_motor_port_arg = DeclareLaunchArgument(
         "motor_port",
-        default_value="/dev/rover_motor",
+        default_value=DEFAULT_MOTOR_PORT,
         description="Serial port for Motor ESP32 actuator (Cytron MDDS30).",
     )
 
     declare_encoder_port_arg = DeclareLaunchArgument(
         "encoder_port",
-        default_value="/dev/rover_encoder",
+        default_value=DEFAULT_ENCODER_PORT,
         description="Serial port for Encoder ESP32 sensor (Wheel Odometry).",
     )
 
@@ -99,7 +117,7 @@ def generate_launch_description():
 
     declare_odom_source_arg = DeclareLaunchArgument(
         "odom_source",
-        default_value="auto",
+        default_value="cmd_vel",
         description="'encoder', 'cmd_vel' (open-loop) or 'auto' (encoder if data arrives).",
     )
 
@@ -141,6 +159,18 @@ def generate_launch_description():
         description="Encoder ticks per full wheel revolution.",
     )
 
+    declare_ticks_left_arg = DeclareLaunchArgument(
+        "ticks_per_rev_left",
+        default_value="14.0",
+        description="Left tooth-wheel encoder pulses per wheel turn (14 teeth).",
+    )
+
+    declare_ticks_right_arg = DeclareLaunchArgument(
+        "ticks_per_rev_right",
+        default_value="15.0",
+        description="Right tooth-wheel encoder pulses per wheel turn (15 teeth).",
+    )
+
     declare_publish_tf_arg = DeclareLaunchArgument(
         "publish_tf",
         default_value="true",
@@ -162,14 +192,14 @@ def generate_launch_description():
 
     declare_lidar_port_arg = DeclareLaunchArgument(
         "lidar_port",
-        default_value="/dev/rplidar",
+        default_value=DEFAULT_LIDAR_PORT,
         description="Serial port for 2D LiDAR.",
     )
 
     declare_lidar_baud_arg = DeclareLaunchArgument(
         "lidar_baud",
-        default_value="115200",
-        description="LiDAR baud: RPLIDAR A1/A2 = 115200, C1 = 460800, A3/S1 = 256000.",
+        default_value="256000",
+        description="LiDAR baud: RPLIDAR A2M12/A3/S1 = 256000, A1/A2M8 = 115200, C1 = 460800.",
     )
 
     declare_launch_camera_arg = DeclareLaunchArgument(
@@ -205,6 +235,8 @@ def generate_launch_description():
     wheel_radius     = LaunchConfiguration("wheel_radius")
     track_width      = LaunchConfiguration("track_width")
     ticks_per_rev    = LaunchConfiguration("ticks_per_rev")
+    ticks_left       = LaunchConfiguration("ticks_per_rev_left")
+    ticks_right      = LaunchConfiguration("ticks_per_rev_right")
     publish_tf       = LaunchConfiguration("publish_tf")
     launch_nav       = LaunchConfiguration("launch_nav")
     launch_lidar     = LaunchConfiguration("launch_lidar")
@@ -265,6 +297,9 @@ def generate_launch_description():
                 "wheel_radius": ParameterValue(wheel_radius, value_type=float),
                 "track_width": ParameterValue(track_width, value_type=float),
                 "ticks_per_rev": ParameterValue(ticks_per_rev, value_type=float),
+                "ticks_per_rev_left": ParameterValue(ticks_left, value_type=float),
+                "ticks_per_rev_right": ParameterValue(ticks_right, value_type=float),
+                "encoder_signed": False,
                 "publish_tf": ParameterValue(publish_tf, value_type=bool),
                 "odom_frame": "odom",
                 "base_frame": "base_footprint",
@@ -374,6 +409,8 @@ def generate_launch_description():
             declare_wheel_radius_arg,
             declare_track_width_arg,
             declare_ticks_per_rev_arg,
+            declare_ticks_left_arg,
+            declare_ticks_right_arg,
             declare_publish_tf_arg,
             declare_launch_nav_arg,
             declare_launch_lidar_arg,
